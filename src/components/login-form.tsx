@@ -1,7 +1,5 @@
-"use client"
-
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useNavigate } from "react-router-dom"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -29,7 +27,7 @@ type LoginFormProps = {
 }
 
 export function LoginForm({ nextPath }: LoginFormProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -62,8 +60,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
       description: "Redirecting to your dashboard…",
     })
 
-    router.replace(getSafeNextPath(nextPath))
-    router.refresh()
+    navigate(getSafeNextPath(nextPath), { replace: true })
   }
 
   return (

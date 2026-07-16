@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -9,7 +7,7 @@ import {
   fetchAreasForState,
   syncStateAreas,
   updateState,
-} from "@/app/dashboard/locations/actions"
+} from "@/lib/locations/actions"
 import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,12 +46,14 @@ function nextDraftKey() {
 type StateFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: () => void
   state: State | null
 }
 
 export function StateFormSheet({
   open,
   onOpenChange,
+  onSaved,
   state,
 }: StateFormSheetProps) {
   const isEdit = Boolean(state)
@@ -256,6 +256,7 @@ export function StateFormSheet({
 
     toast.success(isEdit ? "State updated" : "State created")
     setPending(false)
+    onSaved?.()
     onOpenChange(false)
   }
 

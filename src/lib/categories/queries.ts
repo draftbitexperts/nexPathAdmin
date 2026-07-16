@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import {
   CATEGORIES_PAGE_SIZE,
 } from "@/lib/categories/constants"
@@ -18,7 +18,7 @@ export type ListCategoriesResult = {
 export async function listCategories(
   page = 1
 ): Promise<ListCategoriesResult> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * CATEGORIES_PAGE_SIZE
 
@@ -43,7 +43,7 @@ export async function listCategories(
 export async function getCategory(
   id: string
 ): Promise<CategoryWithPlacements | null> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("categories")
@@ -61,7 +61,7 @@ export async function getCategory(
 export async function listPlacementsForCategory(
   categoryId: string
 ): Promise<Pick<CategoryPlacement, "surface" | "sort_order">[]> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("category_placements")

@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { RESOURCES_PAGE_SIZE } from "@/lib/resources/constants"
 import type {
   CategoryOption,
@@ -17,7 +17,7 @@ export async function listResources(
   page = 1,
   providerId?: string | null
 ): Promise<ListResourcesResult> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * RESOURCES_PAGE_SIZE
 
@@ -49,7 +49,7 @@ export async function listResources(
 }
 
 export async function listProviders(): Promise<ProviderOption[]> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("providers")
@@ -64,7 +64,7 @@ export async function listProviders(): Promise<ProviderOption[]> {
 }
 
 export async function listCategoriesForSelect(): Promise<CategoryOption[]> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("categories")

@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -7,7 +5,7 @@ import { toast } from "sonner"
 import {
   createDirectory,
   updateDirectory,
-} from "@/app/dashboard/directories/actions"
+} from "@/lib/directories/actions"
 import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -33,12 +31,14 @@ type FieldErrors = {
 type DirectoryFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: () => void
   directory: Directory | null
 }
 
 export function DirectoryFormSheet({
   open,
   onOpenChange,
+  onSaved,
   directory,
 }: DirectoryFormSheetProps) {
   const isEdit = Boolean(directory)
@@ -108,6 +108,7 @@ export function DirectoryFormSheet({
 
     toast.success(isEdit ? "Directory updated" : "Directory created")
     setPending(false)
+    onSaved?.()
     onOpenChange(false)
   }
 

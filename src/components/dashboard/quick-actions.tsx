@@ -1,8 +1,6 @@
-"use client"
-
 import * as React from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { Link } from "react-router-dom"
+import { useLocation } from "react-router-dom"
 import { FolderPlus, Library, Upload } from "lucide-react"
 import { toast } from "sonner"
 
@@ -52,7 +50,7 @@ const itemClassName =
   "border-border/70 bg-card hover:border-primary/30 hover:bg-accent/40 flex flex-col items-start gap-3 rounded-xl border p-4 text-left shadow-sm transition-all"
 
 export function QuickActions() {
-  const pathname = usePathname()
+  const { pathname } = useLocation()
   const [open, setOpen] = React.useState(false)
 
   function handleConfirm() {
@@ -84,7 +82,7 @@ export function QuickActions() {
             return (
               <Link
                 key={action.title}
-                href={action.href}
+                to={action.href}
                 className={cn(
                   itemClassName,
                   selected && "border-[#b571eb] hover:bg-card"

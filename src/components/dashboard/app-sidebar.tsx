@@ -1,7 +1,5 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import { Logo } from "@/components/logo";
 import {
@@ -20,14 +18,14 @@ import {
 import { isNavActive, mainNav, secondaryNav } from "@/lib/nav";
 
 export function AppSidebar() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
 
   return (
     <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
+            <SidebarMenuButton size="lg" render={<Link to="/dashboard" />}>
               <Logo />
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -43,7 +41,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     isActive={isNavActive(pathname, item.href)}
                     tooltip={item.title}
-                    render={<Link href={item.href} />}
+                    render={<Link to={item.href} />}
                   >
                     <item.icon />
                     <span>{item.title}</span>
@@ -62,7 +60,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     isActive={isNavActive(pathname, item.href)}
                     tooltip={item.title}
-                    render={<Link href={item.href} />}
+                    render={<Link to={item.href} />}
                   >
                     <item.icon />
                     <span>{item.title}</span>

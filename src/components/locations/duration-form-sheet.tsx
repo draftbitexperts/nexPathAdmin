@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -7,7 +5,7 @@ import { toast } from "sonner"
 import {
   createCommunityDuration,
   updateCommunityDuration,
-} from "@/app/dashboard/locations/actions"
+} from "@/lib/locations/actions"
 import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -29,12 +27,14 @@ type FieldErrors = {
 type DurationFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: () => void
   duration: CommunityDuration | null
 }
 
 export function DurationFormSheet({
   open,
   onOpenChange,
+  onSaved,
   duration,
 }: DurationFormSheetProps) {
   const isEdit = Boolean(duration)
@@ -91,6 +91,7 @@ export function DurationFormSheet({
 
     toast.success(isEdit ? "Duration updated" : "Duration created")
     setPending(false)
+    onSaved?.()
     onOpenChange(false)
   }
 

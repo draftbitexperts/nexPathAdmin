@@ -1,7 +1,5 @@
-"use client"
-
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useNavigate } from "react-router-dom"
 import {
   MoreHorizontal,
   Pencil,
@@ -21,7 +19,7 @@ import {
   setAreaActive,
   setCommunityDurationActive,
   setStateActive,
-} from "@/app/dashboard/locations/actions"
+} from "@/lib/locations/actions"
 import { AreaFormSheet } from "@/components/locations/area-form-sheet"
 import { DurationFormSheet } from "@/components/locations/duration-form-sheet"
 import { StateFormSheet } from "@/components/locations/state-form-sheet"
@@ -89,6 +87,7 @@ type LocationsManagerProps = {
   total: number
   page: number
   pageSize: number
+  onMutated?: () => void
 }
 
 const SEARCH_PLACEHOLDERS: Record<LocationTab, string> = {
@@ -195,8 +194,9 @@ export function LocationsManager({
   total,
   page,
   pageSize,
+  onMutated,
 }: LocationsManagerProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [query, setQuery] = React.useState(search ?? "")
 
   const [stateSheetOpen, setStateSheetOpen] = React.useState(false)
@@ -225,13 +225,13 @@ export function LocationsManager({
     if (trimmed === current) return
 
     const timer = window.setTimeout(() => {
-      router.push(
+      navigate(
         locationsHref(tab, 1, tab === "areas" ? stateCode : null, trimmed || null)
       )
     }, 300)
 
     return () => window.clearTimeout(timer)
-  }, [query, router, search, stateCode, tab])
+  }, [query, navigate, search, stateCode, tab])
 
   const stateSelectItems = Object.fromEntries(
     stateOptions.map((s) => [s.code, `${s.name} (${s.code})`])
@@ -242,19 +242,19 @@ export function LocationsManager({
       ? (value as LocationTab)
       : "states"
     setQuery("")
-    router.push(
+    navigate(
       locationsHref(next, 1, next === "areas" ? stateCode : null, null)
     )
   }
 
   function onStateFilter(value: string | null) {
     if (!value) return
-    router.push(locationsHref("areas", 1, value, search))
+    navigate(locationsHref("areas", 1, value, search))
   }
 
   function clearSearch() {
     setQuery("")
-    router.push(
+    navigate(
       locationsHref(tab, 1, tab === "areas" ? stateCode : null, null)
     )
   }
@@ -266,6 +266,7 @@ export function LocationsManager({
       toast.error("Could not update status", { description: result.error })
     } else {
       toast.success(row.is_active ? "State deactivated" : "State activated")
+      onMutated?.()
     }
     setBusyKey(null)
   }
@@ -279,6 +280,7 @@ export function LocationsManager({
     } else {
       toast.success("State deleted")
       setDeletingState(null)
+      onMutated?.()
     }
     setBusyKey(null)
   }
@@ -290,6 +292,7 @@ export function LocationsManager({
       toast.error("Could not update status", { description: result.error })
     } else {
       toast.success(row.is_active ? "Area deactivated" : "Area activated")
+      onMutated?.()
     }
     setBusyKey(null)
   }
@@ -303,6 +306,7 @@ export function LocationsManager({
     } else {
       toast.success("Area deleted")
       setDeletingArea(null)
+      onMutated?.()
     }
     setBusyKey(null)
   }
@@ -316,6 +320,7 @@ export function LocationsManager({
       toast.success(
         row.is_active ? "Duration deactivated" : "Duration activated"
       )
+      onMutated?.()
     }
     setBusyKey(null)
   }
@@ -329,6 +334,7 @@ export function LocationsManager({
     } else {
       toast.success("Duration deleted")
       setDeletingDuration(null)
+      onMutated?.()
     }
     setBusyKey(null)
   }
@@ -777,6 +783,7 @@ export function LocationsManager({
         open={stateSheetOpen}
         onOpenChange={setStateSheetOpen}
         state={editingState}
+        onSaved={onMutated}
       />
       <AreaFormSheet
         open={areaSheetOpen}
@@ -789,6 +796,7 @@ export function LocationsManager({
         open={durationSheetOpen}
         onOpenChange={setDurationSheetOpen}
         duration={editingDuration}
+        onSaved={onMutated}
       />
 
       <Dialog

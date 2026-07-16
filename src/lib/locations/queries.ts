@@ -5,7 +5,7 @@ import type {
   State,
   StateOption,
 } from "@/lib/locations/types"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 export type ListStatesResult = {
   states: State[]
@@ -39,7 +39,7 @@ export async function listStates(
   page = 1,
   search?: string | null
 ): Promise<ListStatesResult> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * LOCATIONS_PAGE_SIZE
   const q = sanitizeSearch(search)
@@ -71,7 +71,7 @@ export async function listStates(
 }
 
 export async function listStatesForSelect(): Promise<StateOption[]> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("states")
@@ -90,7 +90,7 @@ export async function listAreas(
   page = 1,
   search?: string | null
 ): Promise<ListAreasResult> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * LOCATIONS_PAGE_SIZE
   const q = sanitizeSearch(search)
@@ -124,7 +124,7 @@ export async function listAreas(
 
 /** All areas for a state (no pagination) — used when editing a state. */
 export async function listAreasByState(stateCode: string): Promise<Area[]> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("areas")
@@ -143,7 +143,7 @@ export async function listCommunityDurations(
   page = 1,
   search?: string | null
 ): Promise<ListCommunityDurationsResult> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * LOCATIONS_PAGE_SIZE
   const q = sanitizeSearch(search)

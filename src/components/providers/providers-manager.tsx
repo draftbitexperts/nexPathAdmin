@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import {
   Building2,
@@ -15,7 +13,7 @@ import { toast } from "sonner"
 import {
   deleteProvider,
   setProviderActive,
-} from "@/app/dashboard/providers/actions"
+} from "@/lib/providers/actions"
 import { ProviderFormSheet } from "@/components/providers/provider-form-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -58,6 +56,7 @@ type ProvidersManagerProps = {
   total: number
   page: number
   pageSize: number
+  onMutated?: () => void
 }
 
 export function ProvidersManager({
@@ -65,6 +64,7 @@ export function ProvidersManager({
   total,
   page,
   pageSize,
+  onMutated,
 }: ProvidersManagerProps) {
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<Provider | null>(null)
@@ -92,6 +92,7 @@ export function ProvidersManager({
       toast.success(
         provider.is_active ? "Provider deactivated" : "Provider activated"
       )
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -105,6 +106,7 @@ export function ProvidersManager({
     } else {
       toast.success("Provider deleted")
       setDeleting(null)
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -287,6 +289,7 @@ export function ProvidersManager({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         provider={editing}
+        onSaved={onMutated}
       />
 
       <Dialog

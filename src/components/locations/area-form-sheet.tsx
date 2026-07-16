@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -7,7 +5,7 @@ import { toast } from "sonner"
 import {
   createArea,
   updateArea,
-} from "@/app/dashboard/locations/actions"
+} from "@/lib/locations/actions"
 import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -37,6 +35,7 @@ type FieldErrors = {
 type AreaFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: () => void
   area: Area | null
   stateOptions: StateOption[]
   defaultStateCode: string | null
@@ -45,6 +44,7 @@ type AreaFormSheetProps = {
 export function AreaFormSheet({
   open,
   onOpenChange,
+  onSaved,
   area,
   stateOptions,
   defaultStateCode: _defaultStateCode,
@@ -111,6 +111,7 @@ export function AreaFormSheet({
 
     toast.success(isEdit ? "Area updated" : "Area created")
     setPending(false)
+    onSaved?.()
     onOpenChange(false)
   }
 

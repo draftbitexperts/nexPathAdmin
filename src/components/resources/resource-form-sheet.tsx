@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +6,7 @@ import {
   createResource,
   syncResourceCategoryLinks,
   updateResource,
-} from "@/app/dashboard/resources/actions";
+} from "@/lib/resources/actions";
 import { FieldError } from "@/components/field-error";
 import {
   OrderedTogglePicker,
@@ -119,6 +117,7 @@ function validateResourceFields(fields: {
 type ResourceFormSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSaved?: () => void;
   resource: ResourceWithRelations | null;
   providers: ProviderOption[];
   categories: CategoryOption[];
@@ -127,6 +126,7 @@ type ResourceFormSheetProps = {
 export function ResourceFormSheet({
   open,
   onOpenChange,
+  onSaved,
   resource,
   providers,
   categories,
@@ -284,6 +284,7 @@ export function ResourceFormSheet({
 
     toast.success(isEdit ? "Resource updated" : "Resource created");
     setPending(false);
+    onSaved?.();
     onOpenChange(false);
   }
 

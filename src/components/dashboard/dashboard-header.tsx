@@ -1,7 +1,5 @@
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Bell, LogOut, Search, Settings, User } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,7 +39,7 @@ export function DashboardHeader({
   userEmail,
   userName,
 }: DashboardHeaderProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const displayName = userName?.trim() || "Admin";
   const displayEmail = userEmail?.trim() || "Signed in";
   const initials = getInitials(displayName) || "NA";
@@ -57,8 +55,7 @@ export function DashboardHeader({
       return;
     }
 
-    router.replace("/login");
-    router.refresh();
+    navigate("/login", { replace: true })
   }
 
   return (
@@ -152,11 +149,11 @@ export function DashboardHeader({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+              <DropdownMenuItem render={<Link to="/dashboard/settings" />}>
                 <User />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+              <DropdownMenuItem render={<Link to="/dashboard/settings" />}>
                 <Settings />
                 Settings
               </DropdownMenuItem>

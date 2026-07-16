@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -7,7 +5,7 @@ import { toast } from "sonner"
 import {
   createProvider,
   updateProvider,
-} from "@/app/dashboard/providers/actions"
+} from "@/lib/providers/actions"
 import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -30,12 +28,14 @@ type FieldErrors = {
 type ProviderFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: () => void
   provider: Provider | null
 }
 
 export function ProviderFormSheet({
   open,
   onOpenChange,
+  onSaved,
   provider,
 }: ProviderFormSheetProps) {
   const isEdit = Boolean(provider)
@@ -95,6 +95,7 @@ export function ProviderFormSheet({
 
     toast.success(isEdit ? "Provider updated" : "Provider created")
     setPending(false)
+    onSaved?.()
     onOpenChange(false)
   }
 

@@ -1,6 +1,6 @@
 import { DIRECTORIES_PAGE_SIZE } from "@/lib/directories/constants"
 import type { Directory } from "@/lib/directories/types"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 export type ListDirectoriesResult = {
   directories: Directory[]
@@ -12,7 +12,7 @@ export type ListDirectoriesResult = {
 export async function listDirectories(
   page = 1
 ): Promise<ListDirectoriesResult> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * DIRECTORIES_PAGE_SIZE
 
@@ -35,7 +35,7 @@ export async function listDirectories(
 }
 
 export async function getDirectory(id: string): Promise<Directory | null> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("directories")

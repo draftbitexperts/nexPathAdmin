@@ -1,7 +1,5 @@
-"use client"
-
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useNavigate } from "react-router-dom"
 import {
   MoreHorizontal,
   Pencil,
@@ -15,7 +13,7 @@ import { toast } from "sonner"
 import {
   deleteResource,
   setResourceActive,
-} from "@/app/dashboard/resources/actions"
+} from "@/lib/resources/actions"
 import { ResourceFormSheet } from "@/components/resources/resource-form-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -74,6 +72,7 @@ type ResourcesManagerProps = {
   page: number
   pageSize: number
   providerId: string | null
+  onMutated?: () => void
 }
 
 function pageHref(page: number, providerId: string | null) {
@@ -92,8 +91,9 @@ export function ResourcesManager({
   page,
   pageSize,
   providerId,
+  onMutated,
 }: ResourcesManagerProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<ResourceWithRelations | null>(
     null
@@ -117,7 +117,7 @@ export function ResourcesManager({
 
   function onProviderFilter(value: string | null) {
     const next = value === "all" || !value ? null : value
-    router.push(pageHref(1, next))
+    navigate(pageHref(1, next))
   }
 
   async function toggleActive(resource: ResourceWithRelations) {
@@ -129,6 +129,7 @@ export function ResourcesManager({
       toast.success(
         resource.is_active ? "Resource deactivated" : "Resource activated"
       )
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -142,6 +143,7 @@ export function ResourcesManager({
     } else {
       toast.success("Resource deleted")
       setDeleting(null)
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -382,6 +384,7 @@ export function ResourcesManager({
         resource={editing}
         providers={providers}
         categories={categories}
+        onSaved={onMutated}
       />
 
       <Dialog

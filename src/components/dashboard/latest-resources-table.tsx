@@ -1,6 +1,4 @@
-"use client"
-
-import Link from "next/link"
+import { Link } from "react-router-dom"
 import { MoreHorizontal } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -63,7 +61,7 @@ export function LatestResourcesTable() {
           variant="outline"
           size="sm"
           nativeButton={false}
-          render={<Link href="/dashboard/resources" />}
+          render={<Link to="/dashboard/resources" />}
         >
           View all
         </Button>

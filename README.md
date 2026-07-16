@@ -1,37 +1,35 @@
 # NexPath Admin
 
-Modern production-ready admin dashboard built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui.
+Vite + React admin dashboard for managing NexPath resources.
 
 ## Getting Started
 
 ```bash
-npm install
-npm run dev
+yarn install
+yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you will be redirected to the login page.
+Open [http://localhost:5173](http://localhost:5173) — you will be redirected to the login page.
 
-### Demo credentials
+## Environment
 
-Pre-filled on the login form:
+Set these in `.env`:
 
-- Email: `admin@nexpath.io`
-- Password: `nexpath123`
+- `VITE_PUBLIC_SUPABASE_URL`
+- `VITE_PUBLIC_SUPABASE_ANON_KEY`
 
-Sign in to reach the dashboard at `/dashboard`.
+## Scripts
 
-## Pages
-
-| Route | Description |
-| --- | --- |
-| `/login` | Authentication screen |
-| `/dashboard` | Main admin overview |
+- `yarn dev` — start Vite dev server
+- `yarn build` — production build to `dist/`
+- `yarn preview` — preview production build
 
 ## Stack
 
-- Next.js (App Router)
+- Vite + React Router
 - TypeScript
 - Tailwind CSS
 - shadcn/ui
+- Supabase
 - Lucide React
 - Recharts

@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import {
   MoreHorizontal,
@@ -14,7 +12,7 @@ import { toast } from "sonner"
 import {
   deleteCategory,
   setCategoryActive,
-} from "@/app/dashboard/categories/actions"
+} from "@/lib/categories/actions"
 import { CategoryFormSheet } from "@/components/categories/category-form-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -59,6 +57,7 @@ type CategoriesManagerProps = {
   total: number
   page: number
   pageSize: number
+  onMutated?: () => void
 }
 
 export function CategoriesManager({
@@ -66,6 +65,7 @@ export function CategoriesManager({
   total,
   page,
   pageSize,
+  onMutated,
 }: CategoriesManagerProps) {
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<CategoryWithPlacements | null>(
@@ -97,6 +97,7 @@ export function CategoriesManager({
       toast.success(
         category.is_active ? "Category deactivated" : "Category activated"
       )
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -110,6 +111,7 @@ export function CategoriesManager({
     } else {
       toast.success("Category deleted")
       setDeleting(null)
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -305,6 +307,7 @@ export function CategoriesManager({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         category={editing}
+        onSaved={onMutated}
       />
 
       <Dialog

@@ -10,16 +10,12 @@ export type SupabaseConfig = {
  * Security. Never put a service-role key in a public environment variable.
  */
 export function getSupabaseConfig(): SupabaseConfig {
-  const url =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ??
-    process.env.VITE_PUBLIC_SUPABASE_URL
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.VITE_PUBLIC_SUPABASE_ANON_KEY
+  const url = import.meta.env.VITE_PUBLIC_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !anonKey) {
     throw new Error(
-      "Supabase is not configured. Set VITE_PUBLIC_SUPABASE_URL and VITE_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_*)."
+      "Supabase is not configured. Set VITE_PUBLIC_SUPABASE_URL and VITE_PUBLIC_SUPABASE_ANON_KEY in .env."
     )
   }
 

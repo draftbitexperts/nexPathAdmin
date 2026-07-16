@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import {
   ExternalLink,
@@ -15,7 +13,7 @@ import { toast } from "sonner"
 import {
   deleteDirectory,
   setDirectoryActive,
-} from "@/app/dashboard/directories/actions"
+} from "@/lib/directories/actions"
 import { DirectoryFormSheet } from "@/components/directories/directory-form-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -59,6 +57,7 @@ type DirectoriesManagerProps = {
   total: number
   page: number
   pageSize: number
+  onMutated?: () => void
 }
 
 export function DirectoriesManager({
@@ -66,6 +65,7 @@ export function DirectoriesManager({
   total,
   page,
   pageSize,
+  onMutated,
 }: DirectoriesManagerProps) {
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<Directory | null>(null)
@@ -93,6 +93,7 @@ export function DirectoriesManager({
       toast.success(
         directory.is_active ? "Directory deactivated" : "Directory activated"
       )
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -106,6 +107,7 @@ export function DirectoriesManager({
     } else {
       toast.success("Directory deleted")
       setDeleting(null)
+      onMutated?.()
     }
     setBusyId(null)
   }
@@ -309,6 +311,7 @@ export function DirectoriesManager({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         directory={editing}
+        onSaved={onMutated}
       />
 
       <Dialog

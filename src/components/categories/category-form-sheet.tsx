@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -8,7 +6,7 @@ import {
   createCategory,
   syncCategoryPlacements,
   updateCategory,
-} from "@/app/dashboard/categories/actions"
+} from "@/lib/categories/actions"
 import { FieldError } from "@/components/field-error"
 import {
   OrderedTogglePicker,
@@ -72,12 +70,14 @@ function placementsFromCategory(
 type CategoryFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: () => void
   category: CategoryWithPlacements | null
 }
 
 export function CategoryFormSheet({
   open,
   onOpenChange,
+  onSaved,
   category,
 }: CategoryFormSheetProps) {
   const isEdit = Boolean(category)
@@ -206,6 +206,7 @@ export function CategoryFormSheet({
 
     toast.success(isEdit ? "Category updated" : "Category created")
     setPending(false)
+    onSaved?.()
     onOpenChange(false)
   }
 
