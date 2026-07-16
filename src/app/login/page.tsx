@@ -6,7 +6,13 @@ export const metadata: Metadata = {
   title: "Login",
 }
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{ next?: string }>
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { next } = await searchParams
+
   return (
     <div className="bg-background relative flex min-h-svh items-center justify-center overflow-hidden px-4 py-12">
       <div
@@ -22,7 +28,7 @@ export default function LoginPage() {
         className="pointer-events-none absolute -bottom-20 -left-16 size-48 rounded-full bg-[oklch(0.75_0.06_200_/0.18)] blur-3xl sm:-bottom-32 sm:-left-20 sm:size-80 dark:bg-[oklch(0.5_0.1_220_/0.25)]"
       />
       <div className="relative z-10 w-full max-w-md">
-        <LoginForm />
+        <LoginForm nextPath={next} />
       </div>
     </div>
   )

@@ -1,11 +1,12 @@
 import {
   BookOpen,
+  Building2,
   FolderTree,
   LayoutDashboard,
-  Library,
+  Map,
+  MapPinned,
   Settings,
   Upload,
-  Users,
   type LucideIcon,
 } from "lucide-react"
 
@@ -18,9 +19,10 @@ export type NavItem = {
 export const mainNav: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Resources", href: "/dashboard/resources", icon: BookOpen },
+  { title: "Providers", href: "/dashboard/providers", icon: Building2 },
+  { title: "Directories", href: "/dashboard/directories", icon: MapPinned },
   { title: "Categories", href: "/dashboard/categories", icon: FolderTree },
-  { title: "Library", href: "/dashboard/library", icon: Library },
-  { title: "Users", href: "/dashboard/users", icon: Users },
+  { title: "Locations", href: "/dashboard/locations", icon: Map },
 ]
 
 export const secondaryNav: NavItem[] = [

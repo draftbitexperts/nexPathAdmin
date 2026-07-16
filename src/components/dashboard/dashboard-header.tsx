@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell, LogOut, Search, Settings, User } from "lucide-react";
+import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,8 +21,46 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export function DashboardHeader() {
+type DashboardHeaderProps = {
+  userEmail?: string | null;
+  userName?: string | null;
+};
+
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+export function DashboardHeader({
+  userEmail,
+  userName,
+}: DashboardHeaderProps) {
+  const router = useRouter();
+  const displayName = userName?.trim() || "Admin";
+  const displayEmail = userEmail?.trim() || "Signed in";
+  const initials = getInitials(displayName) || "NA";
+
+  async function handleSignOut() {
+    const supabase = getSupabaseBrowserClient();
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      toast.error("Sign out failed", {
+        description: error.message,
+      });
+      return;
+    }
+
+    router.replace("/login");
+    router.refresh();
+  }
+
   return (
     <header className="bg-background/80 sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur-md lg:px-6">
       <SidebarTrigger className="-ml-1" />
@@ -90,20 +130,22 @@ export function DashboardHeader() {
           >
             <Avatar className="size-7">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                NA
+                {initials}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden text-sm font-medium md:inline">Admin</span>
+            <span className="hidden text-sm font-medium md:inline">
+              {displayName}
+            </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-foreground font-medium">
-                    NexPath Admin
+                    {displayName}
                   </span>
                   <span className="text-muted-foreground text-xs">
-                    admin@nexpath.io
+                    {displayEmail}
                   </span>
                 </div>
               </DropdownMenuLabel>
@@ -121,7 +163,7 @@ export function DashboardHeader() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link href="/login" />}>
+              <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut />
                 Sign out
               </DropdownMenuItem>

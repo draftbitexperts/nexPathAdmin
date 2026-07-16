@@ -1,113 +1,81 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { Plus } from "lucide-react"
 
 import { PageHeader } from "@/components/dashboard/page-header"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { ResourcesManager } from "@/components/resources/resources-manager"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { latestResources, type Resource } from "@/lib/data"
-import { cn } from "@/lib/utils"
+  listCategoriesForSelect,
+  listProviders,
+  listResources,
+} from "@/lib/resources/queries"
+import type {
+  CategoryOption,
+  ProviderOption,
+  ResourceWithRelations,
+} from "@/lib/resources/types"
 
 export const metadata: Metadata = {
   title: "Resources",
 }
 
-function statusStyles(status: Resource["status"]) {
-  switch (status) {
-    case "Published":
-      return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-    case "Draft":
-      return "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-    case "Archived":
-      return "bg-muted text-muted-foreground"
-  }
+type ResourcesPageProps = {
+  searchParams: Promise<{ page?: string; provider?: string }>
 }
 
-export default function ResourcesPage() {
+export default async function ResourcesPage({
+  searchParams,
+}: ResourcesPageProps) {
+  const params = await searchParams
+  const page = Math.max(1, Number(params.page) || 1)
+  const providerId = params.provider?.trim() || null
+
+  let resources: ResourceWithRelations[] = []
+  let providers: ProviderOption[] = []
+  let categories: CategoryOption[] = []
+  let total = 0
+  let pageSize = 20
+  let error: string | null = null
+
+  try {
+    const [resourcesResult, providersResult, categoriesResult] =
+      await Promise.all([
+        listResources(page, providerId),
+        listProviders(),
+        listCategoriesForSelect(),
+      ])
+    resources = resourcesResult.resources
+    total = resourcesResult.total
+    pageSize = resourcesResult.pageSize
+    providers = providersResult
+    categories = categoriesResult
+  } catch (err) {
+    error = err instanceof Error ? err.message : "Failed to load resources"
+  }
+
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <PageHeader
         title="Resources"
-        description="Browse and manage every file in the NexPath library."
-        actions={
-          <>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/dashboard/upload" />}
-            >
-              Upload
-            </Button>
-            <Button>
-              <Plus />
-              New resource
-            </Button>
-          </>
-        }
+        description="Cards shown in Resources carousels and task feeds. Each belongs to a provider and can be linked into one or more categories."
       />
 
-      <Card className="border-border/60 shadow-sm">
-        <CardHeader>
-          <CardTitle>All resources</CardTitle>
-          <CardDescription>
-            {latestResources.length} shown · 2,847 total
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="hidden md:table-cell">Downloads</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden sm:table-cell">Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {latestResources.map((resource) => (
-                <TableRow key={resource.id} className="hover:bg-muted/40">
-                  <TableCell className="pl-6 font-medium">
-                    {resource.name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {resource.category}
-                  </TableCell>
-                  <TableCell className="hidden tabular-nums md:table-cell">
-                    {resource.downloads.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={cn("font-medium", statusStyles(resource.status))}
-                    >
-                      {resource.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden sm:table-cell">
-                    {resource.updatedAt}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {error ? (
+        <div
+          role="alert"
+          className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border px-4 py-3 text-sm"
+        >
+          Could not load resources: {error}
+        </div>
+      ) : null}
+
+      <ResourcesManager
+        resources={resources}
+        providers={providers}
+        categories={categories}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        providerId={providerId}
+      />
     </div>
   )
 }

@@ -15,21 +15,55 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
-export function LoginForm() {
+function getSafeNextPath(next?: string | null): string {
+  if (next && next.startsWith("/") && !next.startsWith("//")) {
+    return next
+  }
+  return "/dashboard"
+}
+
+type LoginFormProps = {
+  nextPath?: string | null
+}
+
+export function LoginForm({ nextPath }: LoginFormProps) {
   const router = useRouter()
   const [showPassword, setShowPassword] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true)
+    setError(null)
 
-    await new Promise((resolve) => setTimeout(resolve, 900))
+    const formData = new FormData(event.currentTarget)
+    const email = String(formData.get("email") ?? "").trim()
+    const password = String(formData.get("password") ?? "")
+
+    const supabase = getSupabaseBrowserClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError) {
+      setError(signInError.message)
+      toast.error("Sign in failed", {
+        description: signInError.message,
+      })
+      setLoading(false)
+      return
+    }
+
     toast.success("Welcome back", {
       description: "Redirecting to your dashboard…",
     })
-    router.push("/dashboard")
+
+    router.replace(getSafeNextPath(nextPath))
+    router.refresh()
   }
 
   return (
@@ -54,7 +88,6 @@ export function LoginForm() {
               placeholder="you@company.com"
               required
               className="h-10"
-              defaultValue="admin@nexpath.io"
             />
           </div>
           <div className="space-y-2">
@@ -68,7 +101,6 @@ export function LoginForm() {
                 placeholder="Enter your password"
                 required
                 className="h-10 pr-10"
-                defaultValue="nexpath123"
               />
               <Button
                 type="button"
@@ -82,6 +114,11 @@ export function LoginForm() {
               </Button>
             </div>
           </div>
+          {error ? (
+            <p className="text-destructive text-sm" role="alert">
+              {error}
+            </p>
+          ) : null}
           <Button
             type="submit"
             size="lg"
