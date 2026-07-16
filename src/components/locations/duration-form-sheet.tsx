@@ -8,6 +8,7 @@ import {
   createCommunityDuration,
   updateCommunityDuration,
 } from "@/app/dashboard/locations/actions"
+import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -20,6 +21,10 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import type { CommunityDuration } from "@/lib/locations/types"
+
+type FieldErrors = {
+  label?: string
+}
 
 type DurationFormSheetProps = {
   open: boolean
@@ -36,17 +41,34 @@ export function DurationFormSheet({
   const [pending, setPending] = React.useState(false)
   const [label, setLabel] = React.useState("")
   const [sortOrder, setSortOrder] = React.useState(0)
-  const [isActive, setIsActive] = React.useState(true)
+  const [isActive, setIsActive] = React.useState(false)
+  const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
     if (!open) return
     setLabel(duration?.label ?? "")
     setSortOrder(duration?.sort_order ?? 0)
-    setIsActive(duration?.is_active ?? true)
+    setIsActive(duration?.is_active ?? false)
+    setErrors({})
   }, [open, duration])
+
+  function clearError(field: keyof FieldErrors) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    const nextErrors: FieldErrors = {}
+    if (!label.trim()) nextErrors.label = "Label is required"
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setPending(true)
 
     const formData = new FormData()
@@ -85,6 +107,7 @@ export function DurationFormSheet({
         </SheetHeader>
 
         <form
+          noValidate
           onSubmit={onSubmit}
           className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"
         >
@@ -93,11 +116,15 @@ export function DurationFormSheet({
             <Input
               id="duration-label"
               value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              onChange={(e) => {
+                setLabel(e.target.value)
+                clearError("label")
+              }}
               placeholder="Less than 6 months"
-              required
+              aria-invalid={Boolean(errors.label) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.label} />
           </div>
 
           <div className="space-y-2">

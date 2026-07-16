@@ -84,6 +84,7 @@ function parseResourceInput(formData: FormData): ResourceInput | string {
 
   if (!provider_id) return "Provider is required."
   if (!title) return "Title is required."
+  if (!typeRaw) return "Type is required."
   if (!RESOURCE_TYPES.includes(typeRaw as ResourceType)) {
     return "Type must be website, hotline, youtube, or text."
   }

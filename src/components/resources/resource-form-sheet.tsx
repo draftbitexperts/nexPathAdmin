@@ -9,6 +9,7 @@ import {
   syncResourceCategoryLinks,
   updateResource,
 } from "@/app/dashboard/resources/actions";
+import { FieldError } from "@/components/field-error";
 import {
   OrderedTogglePicker,
   type OrderedToggleSelection,
@@ -68,6 +69,53 @@ function linksFromResource(
   }));
 }
 
+type FieldErrors = {
+  providerId?: string;
+  title?: string;
+  type?: string;
+  url?: string;
+  phone?: string;
+  videoId?: string;
+  body?: string;
+};
+
+function validateResourceFields(fields: {
+  providerId: string;
+  title: string;
+  type: ResourceType | null;
+  url: string;
+  phone: string;
+  videoId: string;
+  body: string;
+}): FieldErrors {
+  const errors: FieldErrors = {};
+
+  if (!fields.providerId) errors.providerId = "Provider is required";
+  if (!fields.title.trim()) errors.title = "Title is required";
+  if (!fields.type) {
+    errors.type = "Type is required";
+    return errors;
+  }
+
+  if (fields.type === "website" && !fields.url.trim()) {
+    errors.url = "URL is required";
+  }
+  if (fields.type === "hotline" && !fields.phone.trim()) {
+    errors.phone = "Phone is required";
+  }
+  if (fields.type === "youtube") {
+    if (!fields.url.trim() && !fields.videoId.trim()) {
+      errors.url = "URL or video ID is required";
+      errors.videoId = "URL or video ID is required";
+    }
+  }
+  if (fields.type === "text" && !fields.body.trim()) {
+    errors.body = "Body is required";
+  }
+
+  return errors;
+}
+
 type ResourceFormSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -89,32 +137,43 @@ export function ResourceFormSheet({
   const [title, setTitle] = React.useState("");
   const [carouselLabel, setCarouselLabel] = React.useState("");
   const [summary, setSummary] = React.useState("");
-  const [type, setType] = React.useState<ResourceType>("website");
+  const [type, setType] = React.useState<ResourceType | null>(null);
   const [url, setUrl] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [videoId, setVideoId] = React.useState("");
   const [body, setBody] = React.useState("");
   const [iconKey, setIconKey] = React.useState("");
   const [heroImageUrl, setHeroImageUrl] = React.useState("");
-  const [isActive, setIsActive] = React.useState(true);
+  const [isActive, setIsActive] = React.useState(false);
   const [links, setLinks] = React.useState<CategoryLinkDraft[]>([]);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
 
   React.useEffect(() => {
     if (!open) return;
-    setProviderId(resource?.provider_id ?? providers[0]?.id ?? "");
+    setProviderId(resource?.provider_id ?? "");
     setTitle(resource?.title ?? "");
     setCarouselLabel(resource?.carousel_label ?? "");
     setSummary(resource?.summary ?? "");
-    setType(resource?.type ?? "website");
+    setType(resource?.type ?? null);
     setUrl(resource?.url ?? "");
     setPhone(resource?.phone ?? "");
     setVideoId(resource?.video_id ?? "");
     setBody(resource?.body ?? "");
     setIconKey(resource?.icon_key ?? "");
     setHeroImageUrl(resource?.hero_image_url ?? "");
-    setIsActive(resource?.is_active ?? true);
+    setIsActive(resource?.is_active ?? false);
     setLinks(linksFromResource(resource, categories));
-  }, [open, resource, providers, categories]);
+    setErrors({});
+  }, [open, resource, categories]);
+
+  function clearError(field: keyof FieldErrors) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   function toCategoryLinkInputs(): CategoryLinkInput[] {
     return links
@@ -148,8 +207,37 @@ export function ResourceFormSheet({
     );
   }
 
+  function onTypeChange(value: string | null) {
+    if (!value) return;
+    const next = value as ResourceType;
+    setType(next);
+    clearError("type");
+    clearError("url");
+    clearError("phone");
+    clearError("videoId");
+    clearError("body");
+    // Clear payload fields that do not apply to the selected type.
+    if (next !== "website" && next !== "youtube") setUrl("");
+    if (next !== "hotline") setPhone("");
+    if (next !== "youtube") setVideoId("");
+    if (next !== "text") setBody("");
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const nextErrors = validateResourceFields({
+      providerId,
+      title,
+      type,
+      url,
+      phone,
+      videoId,
+      body,
+    });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     setPending(true);
 
     const formData = new FormData();
@@ -157,7 +245,7 @@ export function ResourceFormSheet({
     formData.set("title", title);
     formData.set("carousel_label", carouselLabel);
     formData.set("summary", summary);
-    formData.set("type", type);
+    formData.set("type", type!);
     formData.set("url", url);
     formData.set("phone", phone);
     formData.set("video_id", videoId);
@@ -201,7 +289,10 @@ export function ResourceFormSheet({
 
   const textareaClassName = cn(
     "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:ring-3 md:text-sm dark:bg-input/30",
+    "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
   );
+
+  const canSubmit = !pending && providers.length > 0 && Boolean(providerId);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -216,19 +307,28 @@ export function ResourceFormSheet({
         </SheetHeader>
 
         <form
+          noValidate
           onSubmit={onSubmit}
           className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"
         >
           <div className="space-y-2">
             <Label>Provider</Label>
             <Select
-              value={providerId}
-              onValueChange={(value) => setProviderId(value ?? "")}
+              value={providerId || null}
+              onValueChange={(value) => {
+                if (value) {
+                  setProviderId(value);
+                  clearError("providerId");
+                }
+              }}
               items={Object.fromEntries(
                 providers.map((provider) => [provider.id, provider.name]),
               )}
             >
-              <SelectTrigger className="h-9 w-full">
+              <SelectTrigger
+                className="h-9 w-full"
+                aria-invalid={Boolean(errors.providerId) || undefined}
+              >
                 <SelectValue placeholder="Select a provider" />
               </SelectTrigger>
               <SelectContent>
@@ -239,6 +339,7 @@ export function ResourceFormSheet({
                 ))}
               </SelectContent>
             </Select>
+            <FieldError message={errors.providerId} />
             {providers.length === 0 ? (
               <p className="text-muted-foreground text-xs">
                 No providers found. Create a provider before adding resources.
@@ -251,11 +352,15 @@ export function ResourceFormSheet({
             <Input
               id="resource-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                clearError("title");
+              }}
               placeholder="CareerOneStop Job Search"
-              required
+              aria-invalid={Boolean(errors.title) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.title} />
           </div>
 
           <div className="space-y-2">
@@ -287,15 +392,22 @@ export function ResourceFormSheet({
             <Label>Type</Label>
             <Select
               value={type}
-              onValueChange={(value) =>
-                setType((value as ResourceType) ?? "website")
-              }
+              onValueChange={onTypeChange}
               items={RESOURCE_TYPE_LABELS}
             >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue />
+              <SelectTrigger
+                className="h-9 w-full"
+                aria-invalid={Boolean(errors.type) || undefined}
+              >
+                <SelectValue placeholder="Select a type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                side="bottom"
+                align="start"
+                alignItemWithTrigger={false}
+                collisionAvoidance={{ side: "none", fallbackAxisSide: "none" }}
+                className="max-h-56"
+              >
                 {RESOURCE_TYPES.map((resourceType) => (
                   <SelectItem key={resourceType} value={resourceType}>
                     {RESOURCE_TYPE_LABELS[resourceType]}
@@ -303,37 +415,69 @@ export function ResourceFormSheet({
                 ))}
               </SelectContent>
             </Select>
+            <FieldError message={errors.type} />
           </div>
 
-          {type === "website" || type === "youtube" ? (
+          {type === "website" ? (
             <div className="space-y-2">
               <Label htmlFor="resource-url">URL</Label>
               <Input
                 id="resource-url"
                 type="url"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  clearError("url");
+                }}
                 placeholder="https://…"
-                required={type === "website"}
+                aria-invalid={Boolean(errors.url) || undefined}
                 className="h-9"
               />
+              <FieldError message={errors.url} />
             </div>
           ) : null}
 
           {type === "youtube" ? (
-            <div className="space-y-2">
-              <Label htmlFor="resource-video-id">Video ID</Label>
-              <Input
-                id="resource-video-id"
-                value={videoId}
-                onChange={(e) => setVideoId(e.target.value)}
-                placeholder="dQw4w9WgXcQ"
-                className="h-9 font-mono text-xs"
-              />
-              <p className="text-muted-foreground text-xs">
-                Optional if URL is set; YouTube video id alternatively.
-              </p>
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="resource-url">URL</Label>
+                <Input
+                  id="resource-url"
+                  type="url"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    clearError("url");
+                    clearError("videoId");
+                  }}
+                  placeholder="https://www.youtube.com/watch?v=…"
+                  aria-invalid={Boolean(errors.url) || undefined}
+                  className="h-9"
+                />
+                <FieldError message={errors.url} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="resource-video-id">Video ID</Label>
+                <Input
+                  id="resource-video-id"
+                  value={videoId}
+                  onChange={(e) => {
+                    setVideoId(e.target.value);
+                    clearError("videoId");
+                    clearError("url");
+                  }}
+                  placeholder="dQw4w9WgXcQ"
+                  aria-invalid={Boolean(errors.videoId) || undefined}
+                  className="h-9 font-mono text-xs"
+                />
+                <FieldError message={errors.videoId} />
+                {!errors.videoId ? (
+                  <p className="text-muted-foreground text-xs">
+                    Provide a YouTube URL or video ID (at least one required).
+                  </p>
+                ) : null}
+              </div>
+            </>
           ) : null}
 
           {type === "hotline" ? (
@@ -343,11 +487,15 @@ export function ResourceFormSheet({
                 id="resource-phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  clearError("phone");
+                }}
                 placeholder="1-800-555-0100"
-                required
+                aria-invalid={Boolean(errors.phone) || undefined}
                 className="h-9"
               />
+              <FieldError message={errors.phone} />
             </div>
           ) : null}
 
@@ -357,12 +505,16 @@ export function ResourceFormSheet({
               <textarea
                 id="resource-body"
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={(e) => {
+                  setBody(e.target.value);
+                  clearError("body");
+                }}
                 placeholder="Guidance or informational copy…"
                 rows={5}
-                required
+                aria-invalid={Boolean(errors.body) || undefined}
                 className={textareaClassName}
               />
+              <FieldError message={errors.body} />
             </div>
           ) : null}
 
@@ -453,7 +605,7 @@ export function ResourceFormSheet({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || providers.length === 0}>
+            <Button type="submit" disabled={!canSubmit}>
               {pending ? (
                 <>
                   <Loader2 className="animate-spin" />

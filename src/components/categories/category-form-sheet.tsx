@@ -9,6 +9,7 @@ import {
   syncCategoryPlacements,
   updateCategory,
 } from "@/app/dashboard/categories/actions"
+import { FieldError } from "@/components/field-error"
 import {
   OrderedTogglePicker,
   type OrderedToggleSelection,
@@ -42,6 +43,11 @@ type PlacementDraft = Record<
   CategorySurface,
   { enabled: boolean; sort_order: number }
 >
+
+type FieldErrors = {
+  name?: string
+  slug?: string
+}
 
 function placementsFromCategory(
   category: CategoryWithPlacements | null
@@ -82,10 +88,11 @@ export function CategoryFormSheet({
   const [shortDescription, setShortDescription] = React.useState("")
   const [longDescription, setLongDescription] = React.useState("")
   const [iconKey, setIconKey] = React.useState<string>("folder")
-  const [isActive, setIsActive] = React.useState(true)
+  const [isActive, setIsActive] = React.useState(false)
   const [placements, setPlacements] = React.useState<PlacementDraft>(
     placementsFromCategory(null)
   )
+  const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
     if (!open) return
@@ -95,14 +102,26 @@ export function CategoryFormSheet({
     setShortDescription(category?.short_description ?? "")
     setLongDescription(category?.long_description ?? "")
     setIconKey(category?.icon_key ?? "folder")
-    setIsActive(category?.is_active ?? true)
+    setIsActive(category?.is_active ?? false)
     setPlacements(placementsFromCategory(category))
+    setErrors({})
   }, [open, category])
+
+  function clearError(field: keyof FieldErrors) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
 
   function onNameChange(value: string) {
     setName(value)
+    clearError("name")
     if (!isEdit && !slugTouched) {
       setSlug(slugify(value))
+      clearError("slug")
     }
   }
 
@@ -141,6 +160,13 @@ export function CategoryFormSheet({
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    const nextErrors: FieldErrors = {}
+    if (!name.trim()) nextErrors.name = "Name is required"
+    if (!slug.trim()) nextErrors.slug = "Slug is required"
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setPending(true)
 
     const formData = new FormData()
@@ -194,6 +220,7 @@ export function CategoryFormSheet({
         </SheetHeader>
 
         <form
+          noValidate
           onSubmit={onSubmit}
           className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"
         >
@@ -204,9 +231,10 @@ export function CategoryFormSheet({
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
               placeholder="Transportation"
-              required
+              aria-invalid={Boolean(errors.name) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.name} />
           </div>
 
           <div className="space-y-2">
@@ -217,12 +245,14 @@ export function CategoryFormSheet({
               onChange={(e) => {
                 setSlugTouched(true)
                 setSlug(slugify(e.target.value))
+                clearError("slug")
               }}
               placeholder="transportation"
-              required
               disabled={isEdit}
+              aria-invalid={Boolean(errors.slug) || undefined}
               className="h-9 font-mono text-xs"
             />
+            <FieldError message={errors.slug} />
             {isEdit ? (
               <p className="text-muted-foreground text-xs">
                 Slug is stable and cannot be changed after create.

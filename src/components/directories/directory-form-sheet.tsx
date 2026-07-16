@@ -8,6 +8,7 @@ import {
   createDirectory,
   updateDirectory,
 } from "@/app/dashboard/directories/actions"
+import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,11 @@ import { categoryIcon } from "@/lib/categories/icons"
 import { DIRECTORY_ICON_KEYS } from "@/lib/directories/constants"
 import type { Directory } from "@/lib/directories/types"
 import { cn } from "@/lib/utils"
+
+type FieldErrors = {
+  name?: string
+  externalUrl?: string
+}
 
 type DirectoryFormSheetProps = {
   open: boolean
@@ -43,7 +49,8 @@ export function DirectoryFormSheet({
   const [iconKey, setIconKey] = React.useState("folder")
   const [sortOrder, setSortOrder] = React.useState(0)
   const [showOnResources, setShowOnResources] = React.useState(true)
-  const [isActive, setIsActive] = React.useState(true)
+  const [isActive, setIsActive] = React.useState(false)
+  const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
     if (!open) return
@@ -53,11 +60,28 @@ export function DirectoryFormSheet({
     setIconKey(directory?.icon_key ?? "folder")
     setSortOrder(directory?.sort_order ?? 0)
     setShowOnResources(directory?.show_on_resources ?? true)
-    setIsActive(directory?.is_active ?? true)
+    setIsActive(directory?.is_active ?? false)
+    setErrors({})
   }, [open, directory])
+
+  function clearError(field: keyof FieldErrors) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    const nextErrors: FieldErrors = {}
+    if (!name.trim()) nextErrors.name = "Name is required"
+    if (!externalUrl.trim()) nextErrors.externalUrl = "External URL is required"
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setPending(true)
 
     const formData = new FormData()
@@ -100,6 +124,7 @@ export function DirectoryFormSheet({
         </SheetHeader>
 
         <form
+          noValidate
           onSubmit={onSubmit}
           className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"
         >
@@ -108,11 +133,15 @@ export function DirectoryFormSheet({
             <Input
               id="directory-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                clearError("name")
+              }}
               placeholder="New Jersey ResourceNet"
-              required
+              aria-invalid={Boolean(errors.name) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.name} />
           </div>
 
           <div className="space-y-2">
@@ -135,10 +164,15 @@ export function DirectoryFormSheet({
               id="directory-url"
               type="url"
               value={externalUrl}
-              onChange={(e) => setExternalUrl(e.target.value)}
+              onChange={(e) => {
+                setExternalUrl(e.target.value)
+                clearError("externalUrl")
+              }}
               placeholder="https://www.nj.gov"
+              aria-invalid={Boolean(errors.externalUrl) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.externalUrl} />
           </div>
 
           <div className="space-y-2">

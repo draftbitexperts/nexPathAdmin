@@ -10,6 +10,7 @@ import {
   syncStateAreas,
   updateState,
 } from "@/app/dashboard/locations/actions"
+import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -30,6 +31,12 @@ type AreaDraft = {
   name: string
   sort_order: number
   is_active: boolean
+}
+
+type FieldErrors = {
+  code?: string
+  name?: string
+  areas?: Record<string, string>
 }
 
 let draftKey = 0
@@ -57,8 +64,9 @@ export function StateFormSheet({
   const [name, setName] = React.useState("")
   const [hasLocalAreas, setHasLocalAreas] = React.useState(false)
   const [sortOrder, setSortOrder] = React.useState(0)
-  const [isActive, setIsActive] = React.useState(true)
+  const [isActive, setIsActive] = React.useState(false)
   const [areas, setAreas] = React.useState<AreaDraft[]>([])
+  const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
     if (!open) return
@@ -67,8 +75,9 @@ export function StateFormSheet({
     setName(state?.name ?? "")
     setHasLocalAreas(state?.has_local_areas ?? false)
     setSortOrder(state?.sort_order ?? 0)
-    setIsActive(state?.is_active ?? true)
+    setIsActive(state?.is_active ?? false)
     setAreas([])
+    setErrors({})
 
     if (!state?.code) {
       setAreasReady(true)
@@ -105,6 +114,27 @@ export function StateFormSheet({
     }
   }, [open, state])
 
+  function clearError(field: "code" | "name") {
+    setErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  function clearAreaError(key: string) {
+    setErrors((prev) => {
+      if (!prev.areas?.[key]) return prev
+      const areasErrors = { ...prev.areas }
+      delete areasErrors[key]
+      return {
+        ...prev,
+        areas: Object.keys(areasErrors).length > 0 ? areasErrors : undefined,
+      }
+    })
+  }
+
   function addArea() {
     setHasLocalAreas(true)
     setAreas((prev) => [
@@ -113,47 +143,75 @@ export function StateFormSheet({
         key: nextDraftKey(),
         name: "",
         sort_order: prev.length,
-        is_active: true,
+        is_active: false,
       },
     ])
+  }
+
+  function onHasLocalAreasChange(checked: boolean) {
+    setHasLocalAreas(checked)
+    if (checked) {
+      setAreas((prev) => {
+        if (prev.length > 0) return prev
+        return [
+          {
+            key: nextDraftKey(),
+            name: "",
+            sort_order: 0,
+            is_active: false,
+          },
+        ]
+      })
+      return
+    }
+    // Unchecking clears empty draft rows that were never saved.
+    setAreas((prev) => prev.filter((area) => area.id || area.name.trim()))
   }
 
   function updateAreaDraft(
     key: string,
     patch: Partial<Pick<AreaDraft, "name" | "sort_order" | "is_active">>
   ) {
+    if (patch.name !== undefined) clearAreaError(key)
     setAreas((prev) =>
       prev.map((area) => (area.key === key ? { ...area, ...patch } : area))
     )
   }
 
   function removeArea(key: string) {
-    setAreas((prev) =>
-      prev
-        .filter((area) => area.key !== key)
-        .map((area, index) => ({ ...area, sort_order: index }))
-    )
+    clearAreaError(key)
+    const next = areas
+      .filter((area) => area.key !== key)
+      .map((area, index) => ({ ...area, sort_order: index }))
+    setAreas(next)
+    if (next.length === 0) setHasLocalAreas(false)
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    const nextErrors: FieldErrors = {}
+    if (!code.trim()) nextErrors.code = "Code is required"
+    if (!name.trim()) nextErrors.name = "Name is required"
+
+    const areaErrors: Record<string, string> = {}
+    for (const area of areas) {
+      if (!area.name.trim()) {
+        areaErrors[area.key] = "Area name is required"
+      }
+    }
+    if (Object.keys(areaErrors).length > 0) nextErrors.areas = areaErrors
+
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setPending(true)
 
-    const trimmedAreas = areas
-      .map((area, index) => ({
-        ...area,
-        name: area.name.trim(),
-        sort_order: index,
-      }))
-      .filter((area) => area.name.length > 0)
-
-    if (areas.some((area) => !area.name.trim())) {
-      toast.error("Area name is required", {
-        description: "Fill in or remove empty area rows before saving.",
-      })
-      setPending(false)
-      return
-    }
+    const trimmedAreas = areas.map((area, index) => ({
+      ...area,
+      name: area.name.trim(),
+      sort_order: index,
+    }))
 
     const formData = new FormData()
     formData.set("code", code)
@@ -212,6 +270,7 @@ export function StateFormSheet({
         </SheetHeader>
 
         <form
+          noValidate
           onSubmit={onSubmit}
           className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"
         >
@@ -220,13 +279,17 @@ export function StateFormSheet({
             <Input
               id="state-code"
               value={code}
-              onChange={(e) => setCode(normalizeStateCode(e.target.value))}
+              onChange={(e) => {
+                setCode(normalizeStateCode(e.target.value))
+                clearError("code")
+              }}
               placeholder="TX"
-              required
               disabled={isEdit}
+              aria-invalid={Boolean(errors.code) || undefined}
               className="h-9 font-mono uppercase"
               maxLength={8}
             />
+            <FieldError message={errors.code} />
             {isEdit ? (
               <p className="text-muted-foreground text-xs">
                 Code is the primary key and cannot be changed after create.
@@ -239,11 +302,15 @@ export function StateFormSheet({
             <Input
               id="state-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                clearError("name")
+              }}
               placeholder="Texas"
-              required
+              aria-invalid={Boolean(errors.name) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.name} />
           </div>
 
           <div className="space-y-2">
@@ -261,7 +328,7 @@ export function StateFormSheet({
           <div className="flex items-center gap-2">
             <Checkbox
               checked={hasLocalAreas}
-              onCheckedChange={(checked) => setHasLocalAreas(checked)}
+              onCheckedChange={(checked) => onHasLocalAreasChange(checked)}
               className="after:hidden"
               aria-label="Has local areas"
             />
@@ -329,10 +396,13 @@ export function StateFormSheet({
                           updateAreaDraft(area.key, { name: e.target.value })
                         }
                         placeholder="Dallas County"
-                        required
+                        aria-invalid={
+                          Boolean(errors.areas?.[area.key]) || undefined
+                        }
                         className="h-9"
                         aria-label={`Area ${index + 1} name`}
                       />
+                      <FieldError message={errors.areas?.[area.key]} />
                       <label className="flex items-center gap-2">
                         <Checkbox
                           checked={area.is_active}
@@ -373,7 +443,10 @@ export function StateFormSheet({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || loadingAreas || !areasReady}>
+            <Button
+              type="submit"
+              disabled={pending || loadingAreas || !areasReady}
+            >
               {pending ? (
                 <>
                   <Loader2 className="animate-spin" />

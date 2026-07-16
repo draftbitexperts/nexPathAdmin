@@ -74,6 +74,7 @@ function parseDirectoryInput(formData: FormData): DirectoryInput | string {
   const is_active = formData.get("is_active") !== "false"
 
   if (!name) return "Name is required."
+  if (!external_url) return "External URL is required."
   if (!Number.isFinite(sort_order)) return "Sort order must be a number."
 
   return {

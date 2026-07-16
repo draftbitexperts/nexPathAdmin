@@ -8,6 +8,7 @@ import {
   createProvider,
   updateProvider,
 } from "@/app/dashboard/providers/actions"
+import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -21,6 +22,10 @@ import {
 } from "@/components/ui/sheet"
 import type { Provider } from "@/lib/providers/types"
 import { cn } from "@/lib/utils"
+
+type FieldErrors = {
+  name?: string
+}
 
 type ProviderFormSheetProps = {
   open: boolean
@@ -38,18 +43,35 @@ export function ProviderFormSheet({
   const [name, setName] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [logoUrl, setLogoUrl] = React.useState("")
-  const [isActive, setIsActive] = React.useState(true)
+  const [isActive, setIsActive] = React.useState(false)
+  const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
     if (!open) return
     setName(provider?.name ?? "")
     setDescription(provider?.description ?? "")
     setLogoUrl(provider?.logo_url ?? "")
-    setIsActive(provider?.is_active ?? true)
+    setIsActive(provider?.is_active ?? false)
+    setErrors({})
   }, [open, provider])
+
+  function clearError(field: keyof FieldErrors) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    const nextErrors: FieldErrors = {}
+    if (!name.trim()) nextErrors.name = "Name is required"
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setPending(true)
 
     const formData = new FormData()
@@ -89,6 +111,7 @@ export function ProviderFormSheet({
         </SheetHeader>
 
         <form
+          noValidate
           onSubmit={onSubmit}
           className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"
         >
@@ -97,11 +120,15 @@ export function ProviderFormSheet({
             <Input
               id="provider-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                clearError("name")
+              }}
               placeholder="CareerOneStop"
-              required
+              aria-invalid={Boolean(errors.name) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.name} />
           </div>
 
           <div className="space-y-2">
