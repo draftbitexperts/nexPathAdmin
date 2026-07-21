@@ -11,12 +11,9 @@ yarn dev
 
 Open [http://localhost:5173](http://localhost:5173) — you will be redirected to the login page.
 
-## Environment
+## Supabase
 
-Set these in `.env`:
-
-- `VITE_PUBLIC_SUPABASE_URL`
-- `VITE_PUBLIC_SUPABASE_ANON_KEY`
+Public credentials are hardcoded in `src/lib/supabase/config.ts`.
 
 ## Scripts
 

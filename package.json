@@ -2,12 +2,15 @@
   "name": "nexpath-admin",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "yarn@1.22.22",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "react-router": "tsc --noEmit && vite",
+    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\"",
+    "format": "yarn lint --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

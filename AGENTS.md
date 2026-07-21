@@ -6,18 +6,12 @@ Vite + React admin dashboard for managing NexPath resources.
 
 ```bash
 npm install
-cp .env.example .env   # if needed
 npm run dev
 ```
 
-## Environment
+## Supabase
 
-Set these in `.env`:
-
-- `VITE_PUBLIC_SUPABASE_URL`
-- `VITE_PUBLIC_SUPABASE_ANON_KEY`
-
-Admin mutations run in the browser with the signed-in user's session. Ensure Supabase Row Level Security policies allow authenticated admin writes.
+Public credentials live in `src/lib/supabase/config.ts`. Admin mutations run in the browser with the signed-in user's session. Ensure Supabase Row Level Security policies allow authenticated admin writes.
 
 ## Scripts
 
