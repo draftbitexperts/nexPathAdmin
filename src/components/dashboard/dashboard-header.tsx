@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import { Bell, LogOut, Search, Settings, User } from "lucide-react";
 import { toast } from "sonner";
 

@@ -15,6 +15,10 @@ Public credentials live in `src/lib/supabase/config.ts`. Admin mutations run in 
 
 ## Scripts
 
-- `npm run dev` — start Vite dev server
-- `npm run build` — production build to `dist/`
-- `npm run preview` — preview production build
+- `yarn dev` — React Router / Draftbit dev server
+- `yarn build` — production build to `build/client` (required by Draftbit deploy)
+- `yarn preview` — preview production build
+
+## Draftbit / React Router
+
+This app uses React Router 7 framework mode (`ssr: false`) so CI can copy `build/client` into the worker package. Routes live under `src/app/`; page UI stays in `src/pages/`.

@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { useLocation } from "react-router-dom";
+import { Link } from "react-router";
+import { useLocation } from "react-router";
 
 import { Logo } from "@/components/logo";
 import {

@@ -2,7 +2,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AuthProvider } from "@/lib/auth/auth-provider"
-import { Outlet } from "react-router-dom"
+import { Outlet } from "react-router"
 
 export function RootLayout() {
   return (

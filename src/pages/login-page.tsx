@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router"
 
 import { LoginForm } from "@/components/login-form"
 import { useDocumentTitle } from "@/hooks/use-document-title"

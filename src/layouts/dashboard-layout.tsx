@@ -2,7 +2,7 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { useAuth } from "@/lib/auth/auth-provider"
-import { Outlet } from "react-router-dom"
+import { Outlet } from "react-router"
 
 export function DashboardLayout() {
   const { user } = useAuth()

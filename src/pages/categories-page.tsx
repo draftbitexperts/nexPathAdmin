@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router"
 
 import { CategoriesManager } from "@/components/categories/categories-manager"
 import { PageHeader } from "@/components/dashboard/page-header"

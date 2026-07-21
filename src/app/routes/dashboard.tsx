@@ -1,8 +1,9 @@
-import { Navigate, Outlet, useLocation } from "react-router"
+import { Navigate, useLocation } from "react-router"
 
+import { DashboardLayout } from "@/layouts/dashboard-layout"
 import { useAuth } from "@/lib/auth/auth-provider"
 
-export function ProtectedRoute() {
+export default function DashboardRoute() {
   const { user, loading } = useAuth()
   const location = useLocation()
 
@@ -19,23 +20,5 @@ export function ProtectedRoute() {
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />
   }
 
-  return <Outlet />
-}
-
-export function GuestRoute() {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="bg-background flex min-h-svh items-center justify-center">
-        <div className="text-muted-foreground text-sm">Loading…</div>
-      </div>
-    )
-  }
-
-  if (user) {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  return <Outlet />
+  return <DashboardLayout />
 }
