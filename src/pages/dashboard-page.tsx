@@ -11,10 +11,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title="Dashboard"
-        description="Overview of resources, downloads, and activity across NexPath."
-      />
+      <PageHeader title="Dashboard" />
 
       <StatsCards />
 

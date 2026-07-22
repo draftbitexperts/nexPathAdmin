@@ -1,107 +1,129 @@
-import { useCallback, useEffect, useState } from "react"
-import { useSearchParams } from "react-router"
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 
-import { PageHeader } from "@/components/dashboard/page-header"
-import { LocationsPageSkeleton } from "@/components/dashboard/page-loading"
-import { LocationsManager } from "@/components/locations/locations-manager"
-import { useDocumentTitle } from "@/hooks/use-document-title"
-import { LOCATIONS_PAGE_SIZE } from "@/lib/locations/constants"
+import { PageHeader } from "@/components/dashboard/page-header";
+import { LocationsPageSkeleton } from "@/components/dashboard/page-loading";
+import { LocationsManager } from "@/components/locations/locations-manager";
+import { useDocumentTitle } from "@/hooks/use-document-title";
+import { LOCATIONS_PAGE_SIZE } from "@/lib/locations/constants";
 import {
   listAreas,
-  listCommunityDurations,
   listStates,
   listStatesForSelect,
-} from "@/lib/locations/queries"
+} from "@/lib/locations/queries";
 import {
   LOCATION_TABS,
   type Area,
-  type CommunityDuration,
   type LocationTab,
   type State,
   type StateOption,
-} from "@/lib/locations/types"
+} from "@/lib/locations/types";
 
 function parseTab(value: string | null): LocationTab {
   if (value && LOCATION_TABS.includes(value as LocationTab)) {
-    return value as LocationTab
+    return value as LocationTab;
   }
-  return "states"
+  return "states";
 }
 
 export function LocationsPage() {
-  useDocumentTitle("Locations")
-  const [searchParams] = useSearchParams()
-  const tab = parseTab(searchParams.get("tab"))
-  const page = Math.max(1, Number(searchParams.get("page")) || 1)
-  const requestedState = searchParams.get("state")?.trim().toUpperCase() || null
-  const search = searchParams.get("q")?.trim() || null
+  useDocumentTitle("Locations");
+  const [searchParams] = useSearchParams();
+  const tab = parseTab(searchParams.get("tab"));
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const requestedState =
+    searchParams.get("state")?.trim().toUpperCase() || null;
+  const search = searchParams.get("q")?.trim() || null;
 
-  const [states, setStates] = useState<State[]>([])
-  const [areas, setAreas] = useState<Area[]>([])
-  const [durations, setDurations] = useState<CommunityDuration[]>([])
-  const [stateOptions, setStateOptions] = useState<StateOption[]>([])
-  const [stateCode, setStateCode] = useState<string | null>(null)
-  const [total, setTotal] = useState(0)
-  const [pageSize, setPageSize] = useState(LOCATIONS_PAGE_SIZE)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [states, setStates] = useState<State[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [stateOptions, setStateOptions] = useState<StateOption[]>([]);
+  const [stateCode, setStateCode] = useState<string | null>(null);
+  const [statesTotal, setStatesTotal] = useState(0);
+  const [areasTotal, setAreasTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(LOCATIONS_PAGE_SIZE);
+  const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+
+  const readyRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const loadData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    const requestId = ++requestIdRef.current;
+    setError(null);
+
     try {
-      const options = await listStatesForSelect()
-      setStateOptions(options)
+      const optionsResult = await listStatesForSelect();
+      if (requestId !== requestIdRef.current) return;
 
       const resolvedStateCode =
         requestedState &&
-        options.some((option) => option.code === requestedState)
+        optionsResult.some((option) => option.code === requestedState)
           ? requestedState
-          : (options[0]?.code ?? null)
-      setStateCode(resolvedStateCode)
+          : null;
+      setStateOptions(optionsResult);
+      setStateCode(resolvedStateCode);
 
+      // First visit: load both tabs so switching never flashes empty states.
+      if (!readyRef.current) {
+        const statesPage = tab === "states" ? page : 1;
+        const statesSearch = tab === "states" ? search : null;
+        const areasPage = tab === "areas" ? page : 1;
+        const areasSearch = tab === "areas" ? search : null;
+
+        const [statesResult, areasResult] = await Promise.all([
+          listStates(statesPage, statesSearch),
+          listAreas(areasPage, areasSearch, resolvedStateCode),
+        ]);
+        if (requestId !== requestIdRef.current) return;
+
+        setStates(statesResult.states);
+        setStatesTotal(statesResult.total);
+        setAreas(areasResult.areas);
+        setAreasTotal(areasResult.total);
+        setPageSize(
+          tab === "states" ? statesResult.pageSize : areasResult.pageSize,
+        );
+        readyRef.current = true;
+        setReady(true);
+        return;
+      }
+
+      // After first load: keep existing rows visible and update in place.
       if (tab === "states") {
-        const result = await listStates(page, search)
-        setStates(result.states)
-        setTotal(result.total)
-        setPageSize(result.pageSize)
-      } else if (tab === "areas") {
-        if (resolvedStateCode) {
-          const result = await listAreas(resolvedStateCode, page, search)
-          setAreas(result.areas)
-          setTotal(result.total)
-          setPageSize(result.pageSize)
-        } else {
-          setAreas([])
-          setTotal(0)
-        }
+        const result = await listStates(page, search);
+        if (requestId !== requestIdRef.current) return;
+        setStates(result.states);
+        setStatesTotal(result.total);
+        setPageSize(result.pageSize);
       } else {
-        const result = await listCommunityDurations(page, search)
-        setDurations(result.durations)
-        setTotal(result.total)
-        setPageSize(result.pageSize)
+        const result = await listAreas(page, search, resolvedStateCode);
+        if (requestId !== requestIdRef.current) return;
+        setAreas(result.areas);
+        setAreasTotal(result.total);
+        setPageSize(result.pageSize);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load locations")
-    } finally {
-      setLoading(false)
+      if (requestId !== requestIdRef.current) return;
+      setError(
+        err instanceof Error ? err.message : "Failed to load locations",
+      );
+      readyRef.current = true;
+      setReady(true);
     }
-  }, [tab, page, requestedState, search])
+  }, [tab, page, requestedState, search]);
 
   useEffect(() => {
-    void loadData()
-  }, [loadData])
+    void loadData();
+  }, [loadData]);
 
-  if (loading) {
-    return <LocationsPageSkeleton />
+  if (!ready) {
+    return <LocationsPageSkeleton />;
   }
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title="Locations"
-        description="Onboarding demographic dropdowns: states, local areas, and community durations."
-      />
+      <PageHeader title="Locations" />
 
       {error ? (
         <div
@@ -116,15 +138,14 @@ export function LocationsPage() {
         tab={tab}
         states={states}
         areas={areas}
-        durations={durations}
         stateOptions={stateOptions}
         stateCode={stateCode}
         search={search}
-        total={total}
+        total={tab === "states" ? statesTotal : areasTotal}
         page={page}
         pageSize={pageSize}
         onMutated={loadData}
       />
     </div>
-  )
+  );
 }

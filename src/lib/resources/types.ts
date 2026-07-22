@@ -18,8 +18,7 @@ export type Resource = {
   phone: string | null
   video_id: string | null
   body: string | null
-  icon_key: string | null
-  hero_image_url: string | null
+  image_url: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -56,8 +55,6 @@ export type ResourceInput = {
   phone: string
   video_id: string
   body: string
-  icon_key: string
-  hero_image_url: string
   is_active?: boolean
 }
 
@@ -65,3 +62,8 @@ export type CategoryLinkInput = {
   category_id: string
   sort_order: number
 }
+
+export type ResourceImageMime =
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp"

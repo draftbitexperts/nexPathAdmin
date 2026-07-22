@@ -1,57 +1,54 @@
-import type { ReactNode } from "react"
+import type { ReactNode } from "react";
 
-import { PageHeader } from "@/components/dashboard/page-header"
+import { PageHeader } from "@/components/dashboard/page-header";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
-} from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export function PageShell({
   title,
-  description,
   action,
   children,
 }: {
-  title: string
-  description?: string
-  action?: boolean
-  children: ReactNode
+  title: string;
+  action?: boolean;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <PageHeader
         title={title}
-        description={description}
         actions={
           action ? <Skeleton className="h-9 w-32 rounded-lg" /> : undefined
         }
       />
       {children}
     </div>
-  )
+  );
 }
 
 function TableRowSkeleton({
   columns,
   className,
 }: {
-  columns: ReactNode
-  className?: string
+  columns: ReactNode;
+  className?: string;
 }) {
   return (
     <div
       className={cn(
         "flex items-center gap-4 border-b border-border/60 px-6 py-3.5 last:border-b-0",
-        className
+        className,
       )}
     >
       {columns}
     </div>
-  )
+  );
 }
 
 export function ManagerTableSkeleton({
@@ -60,10 +57,10 @@ export function ManagerTableSkeleton({
   action = true,
   renderRow,
 }: {
-  toolbarLeft?: ReactNode
-  rows?: number
-  action?: boolean
-  renderRow: () => ReactNode
+  toolbarLeft?: ReactNode;
+  rows?: number;
+  action?: boolean;
+  renderRow: () => ReactNode;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
@@ -79,15 +76,12 @@ export function ManagerTableSkeleton({
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 export function DashboardPageSkeleton() {
   return (
-    <PageShell
-      title="Dashboard"
-      description="Overview of resources, downloads, and activity across NexPath."
-    >
+    <PageShell title="Dashboard">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="border-border/60 shadow-sm">
@@ -196,148 +190,159 @@ export function DashboardPageSkeleton() {
         </Card>
       </div>
     </PageShell>
-  )
+  );
+}
+
+function SearchFieldSkeleton() {
+  return (
+    <div className="flex justify-end">
+      <Skeleton className="h-8 w-full rounded-lg sm:max-w-xs" />
+    </div>
+  );
 }
 
 export function ResourcesPageSkeleton() {
   return (
-    <PageShell
-      title="Resources"
-      description="Cards shown in Resources carousels and task feeds. Each belongs to a provider and can be linked into one or more categories."
-    >
-      <ManagerTableSkeleton
-        toolbarLeft={
-          <>
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-full rounded-lg sm:w-48" />
-          </>
-        }
-        renderRow={() => (
-          <TableRowSkeleton
-            columns={
-              <>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-28" />
-                </div>
-                <Skeleton className="hidden h-4 w-24 md:block" />
-                <Skeleton className="h-5 w-16 rounded-full" />
-                <div className="hidden gap-1 lg:flex">
+    <PageShell title="Resources">
+      <div className="space-y-4">
+        <SearchFieldSkeleton />
+        <ManagerTableSkeleton
+          toolbarLeft={
+            <>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-full rounded-lg sm:w-48" />
+            </>
+          }
+          renderRow={() => (
+            <TableRowSkeleton
+              columns={
+                <>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                  <Skeleton className="hidden h-4 w-24 md:block" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <div className="hidden gap-1 lg:flex">
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                  </div>
                   <Skeleton className="h-5 w-14 rounded-full" />
-                  <Skeleton className="h-5 w-14 rounded-full" />
-                </div>
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="size-8 shrink-0 rounded-lg" />
-              </>
-            }
-          />
-        )}
-      />
+                  <Skeleton className="size-8 shrink-0 rounded-lg" />
+                </>
+              }
+            />
+          )}
+        />
+      </div>
     </PageShell>
-  )
+  );
 }
 
 export function DirectoriesPageSkeleton() {
   return (
-    <PageShell
-      title="Directories"
-      description="Regional starting points shown as a carousel on the Resources tab. Standalone — no provider or category link."
-    >
-      <ManagerTableSkeleton
-        renderRow={() => (
-          <TableRowSkeleton
-            columns={
-              <>
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <Skeleton className="mt-0.5 size-8 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <Skeleton className="h-4 w-36" />
-                    <Skeleton className="h-3 w-48" />
+    <PageShell title="Directories">
+      <div className="space-y-4">
+        <SearchFieldSkeleton />
+        <ManagerTableSkeleton
+          renderRow={() => (
+            <TableRowSkeleton
+              columns={
+                <>
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <Skeleton className="mt-0.5 size-8 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-3 w-48" />
+                    </div>
                   </div>
-                </div>
-                <Skeleton className="hidden h-3 w-32 md:block" />
-                <Skeleton className="hidden h-4 w-8 sm:block" />
-                <Skeleton className="h-5 w-16 rounded-full" />
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="size-8 shrink-0 rounded-lg" />
-              </>
-            }
-          />
-        )}
-      />
+                  <Skeleton className="hidden h-3 w-32 md:block" />
+                  <Skeleton className="hidden h-4 w-8 sm:block" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="size-8 shrink-0 rounded-lg" />
+                </>
+              }
+            />
+          )}
+        />
+      </div>
     </PageShell>
-  )
+  );
 }
 
 export function ProvidersPageSkeleton() {
   return (
-    <PageShell
-      title="Providers"
-      description="The organization behind a resource. Every resource belongs to exactly one provider."
-    >
-      <ManagerTableSkeleton
-        renderRow={() => (
-          <TableRowSkeleton
-            columns={
-              <>
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <Skeleton className="mt-0.5 size-8 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <Skeleton className="h-4 w-36" />
-                    <Skeleton className="h-3 w-48" />
+    <PageShell title="Providers">
+      <div className="space-y-4">
+        <SearchFieldSkeleton />
+        <ManagerTableSkeleton
+          renderRow={() => (
+            <TableRowSkeleton
+              columns={
+                <>
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <Skeleton className="mt-0.5 size-8 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-3 w-48" />
+                    </div>
                   </div>
-                </div>
-                <Skeleton className="hidden h-3 w-32 md:block" />
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="size-8 shrink-0 rounded-lg" />
-              </>
-            }
-          />
-        )}
-      />
+                  <Skeleton className="hidden h-3 w-32 md:block" />
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="size-8 shrink-0 rounded-lg" />
+                </>
+              }
+            />
+          )}
+        />
+      </div>
     </PageShell>
-  )
+  );
 }
 
 export function CategoriesPageSkeleton() {
   return (
     <PageShell title="Categories">
-      <ManagerTableSkeleton
-        renderRow={() => (
-          <TableRowSkeleton
-            columns={
-              <>
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <Skeleton className="mt-0.5 size-8 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-44" />
+      <div className="space-y-4">
+        <SearchFieldSkeleton />
+        <ManagerTableSkeleton
+          renderRow={() => (
+            <TableRowSkeleton
+              columns={
+                <>
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <Skeleton className="mt-0.5 size-8 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-44" />
+                    </div>
                   </div>
-                </div>
-                <div className="hidden gap-1 md:flex">
-                  <Skeleton className="h-5 w-20 rounded-full" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="hidden h-4 w-16 lg:block" />
-                <Skeleton className="size-8 shrink-0 rounded-lg" />
-              </>
-            }
-          />
-        )}
-      />
+                  <div className="hidden gap-1 md:flex">
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="hidden h-4 w-16 lg:block" />
+                  <Skeleton className="size-8 shrink-0 rounded-lg" />
+                </>
+              }
+            />
+          )}
+        />
+      </div>
     </PageShell>
-  )
+  );
 }
 
 export function LocationsPageSkeleton() {
   return (
-    <PageShell
-      title="Locations"
-      description="Onboarding demographic dropdowns: states, local areas, and community durations."
-    >
+    <PageShell title="Locations">
       <div className="space-y-4">
-        <Skeleton className="h-8 w-80 max-w-full rounded-lg" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Skeleton className="h-8 w-80 max-w-full rounded-lg" />
+          <Skeleton className="h-8 w-full rounded-lg sm:max-w-xs" />
+        </div>
         <ManagerTableSkeleton
           renderRow={() => (
             <TableRowSkeleton
@@ -348,7 +353,6 @@ export function LocationsPageSkeleton() {
                     <Skeleton className="h-3 w-12" />
                   </div>
                   <Skeleton className="hidden h-5 w-12 rounded-full sm:block" />
-                  <Skeleton className="hidden h-4 w-8 md:block" />
                   <Skeleton className="h-5 w-14 rounded-full" />
                   <Skeleton className="size-8 shrink-0 rounded-lg" />
                 </>
@@ -358,16 +362,51 @@ export function LocationsPageSkeleton() {
         />
       </div>
     </PageShell>
-  )
+  );
+}
+
+export function AnalyticsPageSkeleton() {
+  return (
+    <PageShell title="Analytics">
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48 max-w-full rounded-lg" />
+        <ManagerTableSkeleton
+          action={false}
+          toolbarLeft={
+            <>
+              <Skeleton className="h-8 w-32 rounded-lg" />
+              <Skeleton className="h-8 w-40 rounded-lg" />
+              <Skeleton className="h-8 w-36 rounded-lg" />
+            </>
+          }
+          renderRow={() => (
+            <TableRowSkeleton
+              columns={
+                <>
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-5 w-24 rounded-full" />
+                  </div>
+                  <Skeleton className="hidden h-4 w-20 md:block" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="hidden h-4 w-20 lg:block" />
+                </>
+              }
+            />
+          )}
+        />
+      </div>
+    </PageShell>
+  );
 }
 
 export function LibraryPageSkeleton() {
   return (
-    <PageShell
-      title="Library"
-      description="Collections and curated packs available to your workspace."
-      action
-    >
+    <PageShell title="Library" action>
       <div className="grid gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i} className="border-border/60 shadow-sm">
@@ -402,15 +441,12 @@ export function LibraryPageSkeleton() {
         </CardContent>
       </Card>
     </PageShell>
-  )
+  );
 }
 
 export function UploadPageSkeleton() {
   return (
-    <PageShell
-      title="Upload"
-      description="Add a new resource to the NexPath library."
-    >
+    <PageShell title="Upload">
       <Card className="border-border/60 mx-auto max-w-2xl shadow-sm">
         <CardHeader>
           <Skeleton className="h-5 w-28" />
@@ -441,15 +477,12 @@ export function UploadPageSkeleton() {
         </CardFooter>
       </Card>
     </PageShell>
-  )
+  );
 }
 
 export function SettingsPageSkeleton() {
   return (
-    <PageShell
-      title="Settings"
-      description="Manage your profile, appearance, and workspace preferences."
-    >
+    <PageShell title="Settings">
       <div className="mx-auto grid max-w-3xl gap-6">
         <Card className="border-border/60 shadow-sm">
           <CardHeader>
@@ -499,5 +532,5 @@ export function SettingsPageSkeleton() {
         </Card>
       </div>
     </PageShell>
-  )
+  );
 }

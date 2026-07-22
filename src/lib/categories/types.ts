@@ -1,11 +1,3 @@
-export const CATEGORY_SURFACES = [
-  "onboarding",
-  "path_explore",
-  "resources",
-] as const
-
-export type CategorySurface = (typeof CATEGORY_SURFACES)[number]
-
 export type Category = {
   id: string
   slug: string
@@ -14,18 +6,6 @@ export type Category = {
   long_description: string | null
   icon_key: string | null
   is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
-export type CategoryPlacement = {
-  category_id: string
-  surface: CategorySurface
-  sort_order: number
-}
-
-export type CategoryWithPlacements = Category & {
-  category_placements: Pick<CategoryPlacement, "surface" | "sort_order">[]
 }
 
 export type CategoryInput = {
@@ -35,9 +15,4 @@ export type CategoryInput = {
   long_description: string
   icon_key: string
   is_active?: boolean
-}
-
-export type PlacementInput = {
-  surface: CategorySurface
-  sort_order: number
 }

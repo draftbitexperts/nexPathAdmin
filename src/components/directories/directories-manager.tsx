@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useNavigate } from "react-router"
 import {
   ExternalLink,
   MoreHorizontal,
@@ -6,32 +7,22 @@ import {
   Plus,
   Power,
   PowerOff,
-  Trash2,
+  Search,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
-import {
-  deleteDirectory,
-  setDirectoryActive,
-} from "@/lib/directories/actions"
+import { setDirectoryActive } from "@/lib/directories/actions"
 import { DirectoryFormSheet } from "@/components/directories/directory-form-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import {
   Pagination,
   PaginationContent,
@@ -48,16 +39,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { categoryIcon } from "@/lib/categories/icons"
-import type { Directory } from "@/lib/directories/types"
+import type { DirectoryWithRelations } from "@/lib/directories/types"
+import type { StateOption } from "@/lib/locations/types"
 import { cn } from "@/lib/utils"
 
 type DirectoriesManagerProps = {
-  directories: Directory[]
+  directories: DirectoryWithRelations[]
   total: number
   page: number
   pageSize: number
+  search: string | null
+  stateOptions: StateOption[]
   onMutated?: () => void
+}
+
+function pageHref(page: number, search: string | null) {
+  const params = new URLSearchParams()
+  if (page > 1) params.set("page", String(page))
+  const q = search?.trim()
+  if (q) params.set("q", q)
+  const qs = params.toString()
+  return qs ? `?${qs}` : "?"
 }
 
 export function DirectoriesManager({
@@ -65,26 +67,52 @@ export function DirectoriesManager({
   total,
   page,
   pageSize,
+  search,
+  stateOptions,
   onMutated,
 }: DirectoriesManagerProps) {
+  const navigate = useNavigate()
+  const [query, setQuery] = React.useState(search ?? "")
   const [sheetOpen, setSheetOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<Directory | null>(null)
-  const [deleting, setDeleting] = React.useState<Directory | null>(null)
+  const [editing, setEditing] = React.useState<DirectoryWithRelations | null>(
+    null
+  )
   const [busyId, setBusyId] = React.useState<string | null>(null)
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  React.useEffect(() => {
+    setQuery(search ?? "")
+  }, [search])
+
+  React.useEffect(() => {
+    const trimmed = query.trim()
+    const current = (search ?? "").trim()
+    if (trimmed === current) return
+
+    const timer = window.setTimeout(() => {
+      navigate(pageHref(1, trimmed || null))
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [query, navigate, search])
 
   function openCreate() {
     setEditing(null)
     setSheetOpen(true)
   }
 
-  function openEdit(directory: Directory) {
+  function openEdit(directory: DirectoryWithRelations) {
     setEditing(directory)
     setSheetOpen(true)
   }
 
-  async function toggleActive(directory: Directory) {
+  function clearSearch() {
+    setQuery("")
+    navigate(pageHref(1, null))
+  }
+
+  async function toggleActive(directory: DirectoryWithRelations) {
     setBusyId(directory.id)
     const result = await setDirectoryActive(directory.id, !directory.is_active)
     if (!result.ok) {
@@ -98,22 +126,31 @@ export function DirectoriesManager({
     setBusyId(null)
   }
 
-  async function confirmDelete() {
-    if (!deleting) return
-    setBusyId(deleting.id)
-    const result = await deleteDirectory(deleting.id)
-    if (!result.ok) {
-      toast.error("Could not delete directory", { description: result.error })
-    } else {
-      toast.success("Directory deleted")
-      setDeleting(null)
-      onMutated?.()
-    }
-    setBusyId(null)
-  }
-
   return (
-    <>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search directories…"
+            className="h-8 pr-8 pl-8"
+            aria-label="Search directories"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded-sm p-0.5"
+              aria-label="Clear search"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-6 py-3">
           <p className="text-muted-foreground text-sm">
@@ -128,9 +165,11 @@ export function DirectoriesManager({
           <TableHeader>
             <TableRow>
               <TableHead className="pl-6">Directory</TableHead>
-              <TableHead className="hidden md:table-cell">URL</TableHead>
-              <TableHead className="hidden sm:table-cell">Order</TableHead>
-              <TableHead>Carousel</TableHead>
+              <TableHead className="hidden md:table-cell">Location</TableHead>
+              <TableHead className="hidden lg:table-cell">URL</TableHead>
+              <TableHead className="hidden sm:table-cell">
+                Juvenile justice
+              </TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12 pr-4">
                 <span className="sr-only">Actions</span>
@@ -144,66 +183,65 @@ export function DirectoriesManager({
                   colSpan={6}
                   className="text-muted-foreground py-12 text-center"
                 >
-                  No directories yet. Add regional starting points for the
-                  Resources carousel.
+                  {search
+                    ? `No directories match “${search}”.`
+                    : "No directories yet. Add location-scoped starting points for the Resources tab."}
                 </TableCell>
               </TableRow>
             ) : (
               directories.map((directory) => {
-                const Icon = categoryIcon(directory.icon_key)
+                const stateLabel =
+                  directory.states?.name ?? directory.state_code
+                const areaLabel = directory.area_id
+                  ? (directory.areas?.name ?? "Area")
+                  : "Statewide"
+
                 return (
                   <TableRow key={directory.id} className="hover:bg-muted/40">
                     <TableCell className="pl-6">
                       <button
                         type="button"
                         onClick={() => openEdit(directory)}
-                        className="flex items-start gap-3 text-left"
+                        className="min-w-0 space-y-0.5 text-left"
                       >
-                        <span className="bg-muted text-muted-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg">
-                          <Icon className="size-4" />
+                        <span className="block font-medium">
+                          {directory.name}
                         </span>
-                        <span className="min-w-0 space-y-0.5">
-                          <span className="block font-medium">
-                            {directory.name}
-                          </span>
-                          <span className="text-muted-foreground line-clamp-2 block text-xs">
-                            {directory.description || "—"}
-                          </span>
+                        <span className="text-muted-foreground line-clamp-2 block text-xs">
+                          {directory.description || "—"}
                         </span>
                       </button>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {directory.external_url ? (
-                        <a
-                          href={directory.external_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-muted-foreground hover:text-foreground inline-flex max-w-[14rem] items-center gap-1 truncate text-xs"
+                      <span className="block text-sm">{stateLabel}</span>
+                      <span className="text-muted-foreground text-xs">
+                        {areaLabel}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <a
+                        href={directory.external_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-muted-foreground hover:text-foreground inline-flex max-w-56 items-center gap-1 truncate text-xs"
+                      >
+                        <ExternalLink className="size-3 shrink-0" />
+                        <span className="truncate">
+                          {directory.external_url.replace(/^https?:\/\//, "")}
+                        </span>
+                      </a>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {directory.is_juvenile_justice_centered ? (
+                        <Badge
+                          variant="secondary"
+                          className="bg-amber-500/10 font-medium text-amber-700 dark:text-amber-400"
                         >
-                          <ExternalLink className="size-3 shrink-0" />
-                          <span className="truncate">
-                            {directory.external_url.replace(/^https?:\/\//, "")}
-                          </span>
-                        </a>
+                          Yes
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground text-xs">—</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden tabular-nums sm:table-cell">
-                      {directory.sort_order}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "font-medium",
-                          directory.show_on_resources
-                            ? "bg-sky-500/10 text-sky-700 dark:text-sky-400"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {directory.show_on_resources ? "Shown" : "Hidden"}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -243,14 +281,6 @@ export function DirectoriesManager({
                             {directory.is_active ? <PowerOff /> : <Power />}
                             {directory.is_active ? "Deactivate" : "Activate"}
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setDeleting(directory)}
-                          >
-                            <Trash2 />
-                            Delete…
-                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -272,7 +302,7 @@ export function DirectoriesManager({
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  href={page > 1 ? `?page=${page - 1}` : undefined}
+                  href={page > 1 ? pageHref(page - 1, search) : undefined}
                   aria-disabled={page <= 1}
                   className={
                     page <= 1 ? "pointer-events-none opacity-50" : undefined
@@ -283,7 +313,7 @@ export function DirectoriesManager({
                 (pageNum) => (
                   <PaginationItem key={pageNum}>
                     <PaginationLink
-                      href={`?page=${pageNum}`}
+                      href={pageHref(pageNum, search)}
                       isActive={pageNum === page}
                     >
                       {pageNum}
@@ -293,7 +323,9 @@ export function DirectoriesManager({
               )}
               <PaginationItem>
                 <PaginationNext
-                  href={page < totalPages ? `?page=${page + 1}` : undefined}
+                  href={
+                    page < totalPages ? pageHref(page + 1, search) : undefined
+                  }
                   aria-disabled={page >= totalPages}
                   className={
                     page >= totalPages
@@ -311,37 +343,9 @@ export function DirectoriesManager({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         directory={editing}
+        stateOptions={stateOptions}
         onSaved={onMutated}
       />
-
-      <Dialog
-        open={Boolean(deleting)}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null)
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete “{deleting?.name}”?</DialogTitle>
-            <DialogDescription>
-              This permanently removes the directory from the Resources
-              carousel. Prefer deactivating to hide it instead.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleting(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={busyId === deleting?.id}
-            >
-              Delete permanently
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    </div>
   )
 }

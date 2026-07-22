@@ -27,7 +27,6 @@ type AreaDraft = {
   key: string
   id?: string
   name: string
-  sort_order: number
   is_active: boolean
 }
 
@@ -63,7 +62,6 @@ export function StateFormSheet({
   const [code, setCode] = React.useState("")
   const [name, setName] = React.useState("")
   const [hasLocalAreas, setHasLocalAreas] = React.useState(false)
-  const [sortOrder, setSortOrder] = React.useState(0)
   const [isActive, setIsActive] = React.useState(false)
   const [areas, setAreas] = React.useState<AreaDraft[]>([])
   const [errors, setErrors] = React.useState<FieldErrors>({})
@@ -74,7 +72,6 @@ export function StateFormSheet({
     setCode(state?.code ?? "")
     setName(state?.name ?? "")
     setHasLocalAreas(state?.has_local_areas ?? false)
-    setSortOrder(state?.sort_order ?? 0)
     setIsActive(state?.is_active ?? false)
     setAreas([])
     setErrors({})
@@ -102,7 +99,6 @@ export function StateFormSheet({
           key: area.id,
           id: area.id,
           name: area.name,
-          sort_order: area.sort_order,
           is_active: area.is_active,
         }))
       )
@@ -142,7 +138,6 @@ export function StateFormSheet({
       {
         key: nextDraftKey(),
         name: "",
-        sort_order: prev.length,
         is_active: false,
       },
     ])
@@ -157,7 +152,6 @@ export function StateFormSheet({
           {
             key: nextDraftKey(),
             name: "",
-            sort_order: 0,
             is_active: false,
           },
         ]
@@ -170,7 +164,7 @@ export function StateFormSheet({
 
   function updateAreaDraft(
     key: string,
-    patch: Partial<Pick<AreaDraft, "name" | "sort_order" | "is_active">>
+    patch: Partial<Pick<AreaDraft, "name" | "is_active">>
   ) {
     if (patch.name !== undefined) clearAreaError(key)
     setAreas((prev) =>
@@ -180,9 +174,7 @@ export function StateFormSheet({
 
   function removeArea(key: string) {
     clearAreaError(key)
-    const next = areas
-      .filter((area) => area.key !== key)
-      .map((area, index) => ({ ...area, sort_order: index }))
+    const next = areas.filter((area) => area.key !== key)
     setAreas(next)
     if (next.length === 0) setHasLocalAreas(false)
   }
@@ -207,10 +199,9 @@ export function StateFormSheet({
 
     setPending(true)
 
-    const trimmedAreas = areas.map((area, index) => ({
+    const trimmedAreas = areas.map((area) => ({
       ...area,
       name: area.name.trim(),
-      sort_order: index,
     }))
 
     const formData = new FormData()
@@ -220,7 +211,6 @@ export function StateFormSheet({
       "has_local_areas",
       hasLocalAreas || trimmedAreas.length > 0 ? "true" : "false"
     )
-    formData.set("sort_order", String(sortOrder))
     formData.set("is_active", isActive ? "true" : "false")
 
     const result = isEdit
@@ -241,7 +231,6 @@ export function StateFormSheet({
       trimmedAreas.map((area) => ({
         id: area.id,
         name: area.name,
-        sort_order: area.sort_order,
         is_active: area.is_active,
       }))
     )
@@ -314,18 +303,6 @@ export function StateFormSheet({
             <FieldError message={errors.name} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="state-sort">Sort order</Label>
-            <Input
-              id="state-sort"
-              type="number"
-              min={0}
-              value={sortOrder}
-              onChange={(e) => setSortOrder(Number(e.target.value))}
-              className="h-9"
-            />
-          </div>
-
           <div className="flex items-center gap-2">
             <Checkbox
               checked={hasLocalAreas}
@@ -336,7 +313,8 @@ export function StateFormSheet({
             <span className="text-sm">
               Has local areas
               <span className="text-muted-foreground block text-xs">
-                Show the area question during onboarding for this state.
+                Turn on only when this state has (or will have) an area-scoped
+                directory. Shows the area question during onboarding.
               </span>
             </span>
           </div>
@@ -356,7 +334,8 @@ export function StateFormSheet({
               <div>
                 <p className="text-sm font-medium">Areas</p>
                 <p className="text-muted-foreground text-xs">
-                  Add or remove local areas for this state.
+                  Names should match onboarding and directory references (e.g.
+                  Dallas).
                 </p>
               </div>
               <Button
@@ -378,7 +357,7 @@ export function StateFormSheet({
               </p>
             ) : areas.length === 0 ? (
               <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-sm">
-                No areas yet. Add the first one for onboarding.
+                No areas yet. Add one only for area-scoped directories.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -396,7 +375,7 @@ export function StateFormSheet({
                         onChange={(e) =>
                           updateAreaDraft(area.key, { name: e.target.value })
                         }
-                        placeholder="Dallas County"
+                        placeholder="Dallas"
                         aria-invalid={
                           Boolean(errors.areas?.[area.key]) || undefined
                         }

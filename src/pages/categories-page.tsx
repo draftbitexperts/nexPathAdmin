@@ -6,14 +6,15 @@ import { PageHeader } from "@/components/dashboard/page-header"
 import { CategoriesPageSkeleton } from "@/components/dashboard/page-loading"
 import { useDocumentTitle } from "@/hooks/use-document-title"
 import { listCategories } from "@/lib/categories/queries"
-import type { CategoryWithPlacements } from "@/lib/categories/types"
+import type { Category } from "@/lib/categories/types"
 
 export function CategoriesPage() {
   useDocumentTitle("Categories")
   const [searchParams] = useSearchParams()
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
+  const search = searchParams.get("q")?.trim() || null
 
-  const [categories, setCategories] = useState<CategoryWithPlacements[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [total, setTotal] = useState(0)
   const [pageSize, setPageSize] = useState(20)
   const [error, setError] = useState<string | null>(null)
@@ -23,7 +24,7 @@ export function CategoriesPage() {
     setLoading(true)
     setError(null)
     try {
-      const result = await listCategories(page)
+      const result = await listCategories(page, search)
       setCategories(result.categories)
       setTotal(result.total)
       setPageSize(result.pageSize)
@@ -32,7 +33,7 @@ export function CategoriesPage() {
     } finally {
       setLoading(false)
     }
-  }, [page])
+  }, [page, search])
 
   useEffect(() => {
     void loadData()
@@ -60,6 +61,7 @@ export function CategoriesPage() {
         total={total}
         page={page}
         pageSize={pageSize}
+        search={search}
         onMutated={loadData}
       />
     </div>

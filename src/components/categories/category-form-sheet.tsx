@@ -2,16 +2,8 @@ import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
-import {
-  createCategory,
-  syncCategoryPlacements,
-  updateCategory,
-} from "@/lib/categories/actions"
+import { createCategory, updateCategory } from "@/lib/categories/actions"
 import { FieldError } from "@/components/field-error"
-import {
-  OrderedTogglePicker,
-  type OrderedToggleSelection,
-} from "@/components/ordered-toggle-picker"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -23,55 +15,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import {
-  CATEGORY_ICON_KEYS,
-  SURFACE_LABELS,
-  slugify,
-} from "@/lib/categories/constants"
+import { CATEGORY_ICON_KEYS, slugify } from "@/lib/categories/constants"
 import { categoryIcon } from "@/lib/categories/icons"
-import {
-  CATEGORY_SURFACES,
-  type CategorySurface,
-  type CategoryWithPlacements,
-  type PlacementInput,
-} from "@/lib/categories/types"
+import type { Category } from "@/lib/categories/types"
 import { cn } from "@/lib/utils"
-
-type PlacementDraft = Record<
-  CategorySurface,
-  { enabled: boolean; sort_order: number }
->
 
 type FieldErrors = {
   name?: string
   slug?: string
 }
 
-function placementsFromCategory(
-  category: CategoryWithPlacements | null
-): PlacementDraft {
-  const draft = Object.fromEntries(
-    CATEGORY_SURFACES.map((surface) => [
-      surface,
-      { enabled: false, sort_order: 0 },
-    ])
-  ) as PlacementDraft
-
-  for (const placement of category?.category_placements ?? []) {
-    draft[placement.surface] = {
-      enabled: true,
-      sort_order: placement.sort_order,
-    }
-  }
-
-  return draft
-}
-
 type CategoryFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSaved?: () => void
-  category: CategoryWithPlacements | null
+  category: Category | null
 }
 
 export function CategoryFormSheet({
@@ -88,10 +46,7 @@ export function CategoryFormSheet({
   const [shortDescription, setShortDescription] = React.useState("")
   const [longDescription, setLongDescription] = React.useState("")
   const [iconKey, setIconKey] = React.useState<string>("folder")
-  const [isActive, setIsActive] = React.useState(false)
-  const [placements, setPlacements] = React.useState<PlacementDraft>(
-    placementsFromCategory(null)
-  )
+  const [isActive, setIsActive] = React.useState(true)
   const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
@@ -102,8 +57,7 @@ export function CategoryFormSheet({
     setShortDescription(category?.short_description ?? "")
     setLongDescription(category?.long_description ?? "")
     setIconKey(category?.icon_key ?? "folder")
-    setIsActive(category?.is_active ?? false)
-    setPlacements(placementsFromCategory(category))
+    setIsActive(category?.is_active ?? true)
     setErrors({})
   }, [open, category])
 
@@ -123,39 +77,6 @@ export function CategoryFormSheet({
       setSlug(slugify(value))
       clearError("slug")
     }
-  }
-
-  function toPlacementInputs(): PlacementInput[] {
-    return CATEGORY_SURFACES.filter((surface) => placements[surface].enabled)
-      .map((surface) => ({
-        surface,
-        sort_order: placements[surface].sort_order,
-      }))
-      .sort((a, b) => a.sort_order - b.sort_order)
-  }
-
-  function placementSelection(): OrderedToggleSelection[] {
-    return CATEGORY_SURFACES.filter((surface) => placements[surface].enabled).map(
-      (surface) => ({
-        id: surface,
-        sort_order: placements[surface].sort_order,
-      })
-    )
-  }
-
-  function onPlacementsChange(next: OrderedToggleSelection[]) {
-    const selected = new Map(next.map((item) => [item.id, item.sort_order]))
-    setPlacements((prev) => {
-      const draft = { ...prev }
-      for (const surface of CATEGORY_SURFACES) {
-        const sortOrder = selected.get(surface)
-        draft[surface] =
-          sortOrder === undefined
-            ? { enabled: false, sort_order: 0 }
-            : { enabled: true, sort_order: sortOrder }
-      }
-      return draft
-    })
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -187,21 +108,6 @@ export function CategoryFormSheet({
       })
       setPending(false)
       return
-    }
-
-    const categoryId = isEdit ? category!.id : result.id
-    if (categoryId) {
-      const placementResult = await syncCategoryPlacements(
-        categoryId,
-        toPlacementInputs()
-      )
-      if (!placementResult.ok) {
-        toast.error("Category saved, but placements failed", {
-          description: placementResult.error,
-        })
-        setPending(false)
-        return
-      }
     }
 
     toast.success(isEdit ? "Category updated" : "Category created")
@@ -270,6 +176,9 @@ export function CategoryFormSheet({
               placeholder="Get where you need to go"
               className="h-9"
             />
+            <p className="text-muted-foreground text-xs">
+              Secondary line on menus and cards.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -284,6 +193,9 @@ export function CategoryFormSheet({
                 "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:ring-3 md:text-sm dark:bg-input/30"
               )}
             />
+            <p className="text-muted-foreground text-xs">
+              Shown as “Why it&apos;s important.”
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -322,20 +234,6 @@ export function CategoryFormSheet({
               aria-label="Active"
             />
             <span className="text-sm">Active</span>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Placements</p>
-            <OrderedTogglePicker
-              items={CATEGORY_SURFACES.map((surface) => ({
-                id: surface,
-                label: SURFACE_LABELS[surface],
-              }))}
-              selected={placementSelection()}
-              onChange={onPlacementsChange}
-              orderHeading="Carousel order"
-              emptyOrderHint="Select a surface above to set carousel order."
-            />
           </div>
 
           <SheetFooter className="mt-auto px-0">

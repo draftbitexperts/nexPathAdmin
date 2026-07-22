@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useNavigate } from "react-router"
 import {
   Building2,
   MoreHorizontal,
@@ -6,7 +7,9 @@ import {
   Plus,
   Power,
   PowerOff,
+  Search,
   Trash2,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -32,6 +35,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import {
   Pagination,
   PaginationContent,
@@ -56,7 +60,17 @@ type ProvidersManagerProps = {
   total: number
   page: number
   pageSize: number
+  search: string | null
   onMutated?: () => void
+}
+
+function pageHref(page: number, search: string | null) {
+  const params = new URLSearchParams()
+  if (page > 1) params.set("page", String(page))
+  const q = search?.trim()
+  if (q) params.set("q", q)
+  const qs = params.toString()
+  return qs ? `?${qs}` : "?"
 }
 
 export function ProvidersManager({
@@ -64,14 +78,33 @@ export function ProvidersManager({
   total,
   page,
   pageSize,
+  search,
   onMutated,
 }: ProvidersManagerProps) {
+  const navigate = useNavigate()
+  const [query, setQuery] = React.useState(search ?? "")
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<Provider | null>(null)
   const [deleting, setDeleting] = React.useState<Provider | null>(null)
   const [busyId, setBusyId] = React.useState<string | null>(null)
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  React.useEffect(() => {
+    setQuery(search ?? "")
+  }, [search])
+
+  React.useEffect(() => {
+    const trimmed = query.trim()
+    const current = (search ?? "").trim()
+    if (trimmed === current) return
+
+    const timer = window.setTimeout(() => {
+      navigate(pageHref(1, trimmed || null))
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [query, navigate, search])
 
   function openCreate() {
     setEditing(null)
@@ -81,6 +114,11 @@ export function ProvidersManager({
   function openEdit(provider: Provider) {
     setEditing(provider)
     setSheetOpen(true)
+  }
+
+  function clearSearch() {
+    setQuery("")
+    navigate(pageHref(1, null))
   }
 
   async function toggleActive(provider: Provider) {
@@ -112,7 +150,30 @@ export function ProvidersManager({
   }
 
   return (
-    <>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search providers…"
+            className="h-8 pr-8 pl-8"
+            aria-label="Search providers"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded-sm p-0.5"
+              aria-label="Clear search"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-6 py-3">
           <p className="text-muted-foreground text-sm">
@@ -141,7 +202,9 @@ export function ProvidersManager({
                   colSpan={4}
                   className="text-muted-foreground py-12 text-center"
                 >
-                  No providers yet. Create one before adding resources.
+                  {search
+                    ? `No providers match “${search}”.`
+                    : "No providers yet. Create one before adding resources."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -250,7 +313,7 @@ export function ProvidersManager({
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  href={page > 1 ? `?page=${page - 1}` : undefined}
+                  href={page > 1 ? pageHref(page - 1, search) : undefined}
                   aria-disabled={page <= 1}
                   className={
                     page <= 1 ? "pointer-events-none opacity-50" : undefined
@@ -261,7 +324,7 @@ export function ProvidersManager({
                 (pageNum) => (
                   <PaginationItem key={pageNum}>
                     <PaginationLink
-                      href={`?page=${pageNum}`}
+                      href={pageHref(pageNum, search)}
                       isActive={pageNum === page}
                     >
                       {pageNum}
@@ -271,7 +334,9 @@ export function ProvidersManager({
               )}
               <PaginationItem>
                 <PaginationNext
-                  href={page < totalPages ? `?page=${page + 1}` : undefined}
+                  href={
+                    page < totalPages ? pageHref(page + 1, search) : undefined
+                  }
                   aria-disabled={page >= totalPages}
                   className={
                     page >= totalPages
@@ -321,6 +386,6 @@ export function ProvidersManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

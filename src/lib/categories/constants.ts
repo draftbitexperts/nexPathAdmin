@@ -1,12 +1,4 @@
-import type { CategorySurface } from "@/lib/categories/types"
-
 export const CATEGORIES_PAGE_SIZE = 20
-
-export const SURFACE_LABELS: Record<CategorySurface, string> = {
-  onboarding: "Onboarding",
-  path_explore: "My Path",
-  resources: "Resources",
-}
 
 /** Lucide icon keys used in the mobile app / taxonomy. */
 export const CATEGORY_ICON_KEYS = [

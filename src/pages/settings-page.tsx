@@ -42,10 +42,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title="Settings"
-        description="Manage your profile, appearance, and workspace preferences."
-      />
+      <PageHeader title="Settings" />
 
       <div className="mx-auto grid max-w-3xl gap-6">
         <Card className="border-border/60 shadow-sm">

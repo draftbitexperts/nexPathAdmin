@@ -7,16 +7,8 @@ import {
 import type { ProviderInput } from "@/lib/providers/types"
 
 function formatMutationError(error: { message: string; code?: string }): string {
-  if (
-    error.code === "42501" ||
-    /row-level security|security policies/i.test(error.message)
-  ) {
-    return (
-      "Blocked by Row Level Security. Add SUPABASE_SERVICE_ROLE_KEY to .env " +
-      "(Supabase → Project Settings → API → service_role) and restart the dev server, " +
-      "or ask the backend project to grant write policies for authenticated admins."
-    )
-  }
+  const rls = formatRlsMutationError(error)
+  if (rls !== error.message) return rls
   if (
     error.code === "23503" ||
     /foreign key|still referenced|violates foreign key/i.test(error.message)
@@ -101,6 +93,7 @@ export async function updateProvider(
   return { ok: true }
 }
 
+/** Prefer deactivating over hard delete when resources still reference the provider. */
 export async function setProviderActive(
   id: string,
   isActive: boolean
@@ -120,6 +113,10 @@ export async function setProviderActive(
   return { ok: true }
 }
 
+/**
+ * Hard delete is blocked while resources reference the provider (FK restrict).
+ * Prefer {@link setProviderActive} with `false` to hide instead.
+ */
 export async function deleteProvider(id: string): Promise<ActionResult> {
   if (!id) return { ok: false, error: "Missing provider id." }
 

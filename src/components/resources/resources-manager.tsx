@@ -6,7 +6,9 @@ import {
   Plus,
   Power,
   PowerOff,
+  Search,
   Trash2,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -32,6 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import {
   Pagination,
   PaginationContent,
@@ -55,7 +58,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { categoryIcon } from "@/lib/categories/icons"
 import { RESOURCE_TYPE_LABELS } from "@/lib/resources/constants"
 import type {
   CategoryOption,
@@ -72,13 +74,20 @@ type ResourcesManagerProps = {
   page: number
   pageSize: number
   providerId: string | null
+  search: string | null
   onMutated?: () => void
 }
 
-function pageHref(page: number, providerId: string | null) {
+function pageHref(
+  page: number,
+  providerId: string | null,
+  search: string | null
+) {
   const params = new URLSearchParams()
   if (page > 1) params.set("page", String(page))
   if (providerId) params.set("provider", providerId)
+  const q = search?.trim()
+  if (q) params.set("q", q)
   const qs = params.toString()
   return qs ? `?${qs}` : "?"
 }
@@ -91,9 +100,11 @@ export function ResourcesManager({
   page,
   pageSize,
   providerId,
+  search,
   onMutated,
 }: ResourcesManagerProps) {
   const navigate = useNavigate()
+  const [query, setQuery] = React.useState(search ?? "")
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<ResourceWithRelations | null>(
     null
@@ -104,6 +115,22 @@ export function ResourcesManager({
   const [busyId, setBusyId] = React.useState<string | null>(null)
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  React.useEffect(() => {
+    setQuery(search ?? "")
+  }, [search])
+
+  React.useEffect(() => {
+    const trimmed = query.trim()
+    const current = (search ?? "").trim()
+    if (trimmed === current) return
+
+    const timer = window.setTimeout(() => {
+      navigate(pageHref(1, providerId, trimmed || null))
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [query, navigate, search, providerId])
 
   function openCreate() {
     setEditing(null)
@@ -117,7 +144,12 @@ export function ResourcesManager({
 
   function onProviderFilter(value: string | null) {
     const next = value === "all" || !value ? null : value
-    navigate(pageHref(1, next))
+    navigate(pageHref(1, next, search))
+  }
+
+  function clearSearch() {
+    setQuery("")
+    navigate(pageHref(1, providerId, null))
   }
 
   async function toggleActive(resource: ResourceWithRelations) {
@@ -149,7 +181,30 @@ export function ResourcesManager({
   }
 
   return (
-    <>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search resources…"
+            className="h-8 pr-8 pl-8"
+            aria-label="Search resources"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded-sm p-0.5"
+              aria-label="Clear search"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border/60 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -188,9 +243,10 @@ export function ResourcesManager({
           <TableHeader>
             <TableRow>
               <TableHead className="pl-6">Resource</TableHead>
+              <TableHead className="w-20">Image</TableHead>
               <TableHead className="hidden md:table-cell">Provider</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="hidden lg:table-cell">Categories</TableHead>
+              <TableHead className="hidden lg:table-cell">Category</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12 pr-4">
                 <span className="sr-only">Actions</span>
@@ -201,44 +257,50 @@ export function ResourcesManager({
             {resources.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-muted-foreground py-12 text-center"
                 >
-                  No resources yet. Create the first card for carousels and
-                  feeds.
+                  {search
+                    ? `No resources match “${search}”.`
+                    : "No resources yet. Create the first card for carousels and feeds."}
                 </TableCell>
               </TableRow>
             ) : (
               resources.map((resource) => {
-                const Icon = categoryIcon(resource.icon_key)
-                const categoryLinks = [
-                  ...(resource.category_resources ?? []),
-                ].sort((a, b) => a.sort_order - b.sort_order)
+                const categoryLinks = resource.category_resources ?? []
                 return (
                   <TableRow key={resource.id} className="hover:bg-muted/40">
                     <TableCell className="pl-6">
                       <button
                         type="button"
                         onClick={() => openEdit(resource)}
-                        className="flex items-start gap-3 text-left"
+                        className="text-left"
                       >
-                        <span className="bg-muted text-muted-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg">
-                          <Icon className="size-4" />
+                        <span className="block font-medium">
+                          {resource.title}
                         </span>
-                        <span className="min-w-0 space-y-0.5">
-                          <span className="block font-medium">
-                            {resource.title}
-                          </span>
-                          <span className="text-muted-foreground block text-xs">
-                            {resource.summary ||
-                              resource.carousel_label ||
-                              "—"}
-                          </span>
-                          <span className="text-muted-foreground block text-xs md:hidden">
-                            {resource.providers?.name ?? "—"}
-                          </span>
+                        <span className="text-muted-foreground block text-xs">
+                          {resource.summary ||
+                            resource.carousel_label ||
+                            "—"}
+                        </span>
+                        <span className="text-muted-foreground block text-xs md:hidden">
+                          {resource.providers?.name ?? "—"}
                         </span>
                       </button>
+                    </TableCell>
+                    <TableCell>
+                      {resource.image_url ? (
+                        <img
+                          src={resource.image_url}
+                          alt=""
+                          className="size-16 rounded object-cover"
+                        />
+                      ) : (
+                        <span className="bg-muted text-muted-foreground flex size-16 items-center justify-center rounded text-[10px]">
+                          No image
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground hidden md:table-cell">
                       {resource.providers?.name ?? "—"}
@@ -262,9 +324,6 @@ export function ResourcesManager({
                               className="font-normal"
                             >
                               {link.categories?.name ?? link.category_id}
-                              <span className="text-muted-foreground ml-1 tabular-nums">
-                                #{link.sort_order}
-                              </span>
                             </Badge>
                           ))}
                         </div>
@@ -338,7 +397,9 @@ export function ResourcesManager({
               <PaginationItem>
                 <PaginationPrevious
                   href={
-                    page > 1 ? pageHref(page - 1, providerId) : undefined
+                    page > 1
+                      ? pageHref(page - 1, providerId, search)
+                      : undefined
                   }
                   aria-disabled={page <= 1}
                   className={
@@ -350,7 +411,7 @@ export function ResourcesManager({
                 (pageNum) => (
                   <PaginationItem key={pageNum}>
                     <PaginationLink
-                      href={pageHref(pageNum, providerId)}
+                      href={pageHref(pageNum, providerId, search)}
                       isActive={pageNum === page}
                     >
                       {pageNum}
@@ -362,7 +423,7 @@ export function ResourcesManager({
                 <PaginationNext
                   href={
                     page < totalPages
-                      ? pageHref(page + 1, providerId)
+                      ? pageHref(page + 1, providerId, search)
                       : undefined
                   }
                   aria-disabled={page >= totalPages}
@@ -397,8 +458,8 @@ export function ResourcesManager({
           <DialogHeader>
             <DialogTitle>Delete “{deleting?.title}”?</DialogTitle>
             <DialogDescription>
-              This permanently removes the resource and its category links.
-              Prefer deactivating to hide it instead.
+              This permanently removes the resource, its category links, and
+              any thumbnail in storage. Prefer deactivating to hide it instead.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -415,6 +476,6 @@ export function ResourcesManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

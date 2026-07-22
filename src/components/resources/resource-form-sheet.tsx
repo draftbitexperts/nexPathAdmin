@@ -1,127 +1,128 @@
-import * as React from "react";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import * as React from "react"
+import { ImageIcon, Loader2, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 import {
+  clearResourceImage,
   createResource,
   syncResourceCategoryLinks,
   updateResource,
-} from "@/lib/resources/actions";
-import { FieldError } from "@/components/field-error";
-import {
-  OrderedTogglePicker,
-  type OrderedToggleSelection,
-} from "@/components/ordered-toggle-picker";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+  uploadResourceImage,
+} from "@/lib/resources/actions"
+import { FieldError } from "@/components/field-error"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select"
 import {
   Sheet,
   SheetContent,
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
-import { CATEGORY_ICON_KEYS } from "@/lib/categories/constants";
-import { categoryIcon } from "@/lib/categories/icons";
-import { RESOURCE_TYPE_LABELS } from "@/lib/resources/constants";
+} from "@/components/ui/sheet"
+import {
+  RESOURCE_IMAGE_MAX_BYTES,
+  RESOURCE_IMAGE_MIME_TYPES,
+  RESOURCE_TYPE_LABELS,
+} from "@/lib/resources/constants"
 import {
   RESOURCE_TYPES,
-  type CategoryLinkInput,
   type CategoryOption,
   type ProviderOption,
   type ResourceType,
   type ResourceWithRelations,
-} from "@/lib/resources/types";
-import { cn } from "@/lib/utils";
+} from "@/lib/resources/types"
+import { cn } from "@/lib/utils"
 
-type CategoryLinkDraft = {
-  category_id: string;
-  enabled: boolean;
-  sort_order: number;
-};
+const NO_CATEGORY = "__none__"
 
-function linksFromResource(
-  resource: ResourceWithRelations | null,
-  categories: CategoryOption[],
-): CategoryLinkDraft[] {
-  const linked = new Map(
-    (resource?.category_resources ?? []).map((link) => [
-      link.category_id,
-      link.sort_order,
-    ]),
-  );
-
-  return categories.map((category) => ({
-    category_id: category.id,
-    enabled: linked.has(category.id),
-    sort_order: linked.get(category.id) ?? 0,
-  }));
+function categoryIdFromResource(
+  resource: ResourceWithRelations | null
+): string {
+  const links = [...(resource?.category_resources ?? [])].sort(
+    (a, b) => a.sort_order - b.sort_order
+  )
+  return links[0]?.category_id ?? ""
 }
 
 type FieldErrors = {
-  providerId?: string;
-  title?: string;
-  type?: string;
-  url?: string;
-  phone?: string;
-  videoId?: string;
-  body?: string;
-};
+  providerId?: string
+  title?: string
+  type?: string
+  url?: string
+  phone?: string
+  videoId?: string
+  body?: string
+  image?: string
+}
 
 function validateResourceFields(fields: {
-  providerId: string;
-  title: string;
-  type: ResourceType | null;
-  url: string;
-  phone: string;
-  videoId: string;
-  body: string;
+  providerId: string
+  title: string
+  type: ResourceType | null
+  url: string
+  phone: string
+  videoId: string
+  body: string
 }): FieldErrors {
-  const errors: FieldErrors = {};
+  const errors: FieldErrors = {}
 
-  if (!fields.providerId) errors.providerId = "Provider is required";
-  if (!fields.title.trim()) errors.title = "Title is required";
+  if (!fields.providerId) errors.providerId = "Provider is required"
+  if (!fields.title.trim()) errors.title = "Title is required"
   if (!fields.type) {
-    errors.type = "Type is required";
-    return errors;
+    errors.type = "Type is required"
+    return errors
   }
 
   if (fields.type === "website" && !fields.url.trim()) {
-    errors.url = "URL is required";
+    errors.url = "URL is required"
   }
   if (fields.type === "hotline" && !fields.phone.trim()) {
-    errors.phone = "Phone is required";
+    errors.phone = "Phone is required"
   }
   if (fields.type === "youtube") {
     if (!fields.url.trim() && !fields.videoId.trim()) {
-      errors.url = "URL or video ID is required";
-      errors.videoId = "URL or video ID is required";
+      errors.url = "URL or video ID is required"
+      errors.videoId = "URL or video ID is required"
     }
   }
   if (fields.type === "text" && !fields.body.trim()) {
-    errors.body = "Body is required";
+    errors.body = "Body is required"
   }
 
-  return errors;
+  return errors
+}
+
+function validateImageFile(file: File): string | null {
+  if (
+    !RESOURCE_IMAGE_MIME_TYPES.includes(
+      file.type as (typeof RESOURCE_IMAGE_MIME_TYPES)[number]
+    )
+  ) {
+    return "Image must be JPEG, PNG, or WebP"
+  }
+  if (file.size > RESOURCE_IMAGE_MAX_BYTES) {
+    return "Image must be 2 MiB or smaller"
+  }
+  return null
 }
 
 type ResourceFormSheetProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSaved?: () => void;
-  resource: ResourceWithRelations | null;
-  providers: ProviderOption[];
-  categories: CategoryOption[];
-};
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSaved?: () => void
+  resource: ResourceWithRelations | null
+  providers: ProviderOption[]
+  categories: CategoryOption[]
+}
 
 export function ResourceFormSheet({
   open,
@@ -131,100 +132,109 @@ export function ResourceFormSheet({
   providers,
   categories,
 }: ResourceFormSheetProps) {
-  const isEdit = Boolean(resource);
-  const [pending, setPending] = React.useState(false);
-  const [providerId, setProviderId] = React.useState("");
-  const [title, setTitle] = React.useState("");
-  const [carouselLabel, setCarouselLabel] = React.useState("");
-  const [summary, setSummary] = React.useState("");
-  const [type, setType] = React.useState<ResourceType | null>(null);
-  const [url, setUrl] = React.useState("");
-  const [phone, setPhone] = React.useState("");
-  const [videoId, setVideoId] = React.useState("");
-  const [body, setBody] = React.useState("");
-  const [iconKey, setIconKey] = React.useState("");
-  const [heroImageUrl, setHeroImageUrl] = React.useState("");
-  const [isActive, setIsActive] = React.useState(false);
-  const [links, setLinks] = React.useState<CategoryLinkDraft[]>([]);
-  const [errors, setErrors] = React.useState<FieldErrors>({});
+  const isEdit = Boolean(resource)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const [pending, setPending] = React.useState(false)
+  const [providerId, setProviderId] = React.useState("")
+  const [title, setTitle] = React.useState("")
+  const [carouselLabel, setCarouselLabel] = React.useState("")
+  const [summary, setSummary] = React.useState("")
+  const [type, setType] = React.useState<ResourceType | null>(null)
+  const [url, setUrl] = React.useState("")
+  const [phone, setPhone] = React.useState("")
+  const [videoId, setVideoId] = React.useState("")
+  const [body, setBody] = React.useState("")
+  const [isActive, setIsActive] = React.useState(false)
+  const [categoryId, setCategoryId] = React.useState("")
+  const [errors, setErrors] = React.useState<FieldErrors>({})
+  const [imageFile, setImageFile] = React.useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = React.useState<string | null>(
+    null
+  )
+  const [clearExistingImage, setClearExistingImage] = React.useState(false)
 
   React.useEffect(() => {
-    if (!open) return;
-    setProviderId(resource?.provider_id ?? "");
-    setTitle(resource?.title ?? "");
-    setCarouselLabel(resource?.carousel_label ?? "");
-    setSummary(resource?.summary ?? "");
-    setType(resource?.type ?? null);
-    setUrl(resource?.url ?? "");
-    setPhone(resource?.phone ?? "");
-    setVideoId(resource?.video_id ?? "");
-    setBody(resource?.body ?? "");
-    setIconKey(resource?.icon_key ?? "");
-    setHeroImageUrl(resource?.hero_image_url ?? "");
-    setIsActive(resource?.is_active ?? false);
-    setLinks(linksFromResource(resource, categories));
-    setErrors({});
-  }, [open, resource, categories]);
+    if (!open) return
+    setProviderId(resource?.provider_id ?? "")
+    setTitle(resource?.title ?? "")
+    setCarouselLabel(resource?.carousel_label ?? "")
+    setSummary(resource?.summary ?? "")
+    setType(resource?.type ?? null)
+    setUrl(resource?.url ?? "")
+    setPhone(resource?.phone ?? "")
+    setVideoId(resource?.video_id ?? "")
+    setBody(resource?.body ?? "")
+    setIsActive(resource?.is_active ?? false)
+    setCategoryId(categoryIdFromResource(resource))
+    setImageFile(null)
+    setClearExistingImage(false)
+    setErrors({})
+  }, [open, resource])
+
+  React.useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl(null)
+      return
+    }
+    const objectUrl = URL.createObjectURL(imageFile)
+    setImagePreviewUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [imageFile])
+
+  const displayedImageUrl =
+    imagePreviewUrl ??
+    (!clearExistingImage ? (resource?.image_url ?? null) : null)
 
   function clearError(field: keyof FieldErrors) {
     setErrors((prev) => {
-      if (!prev[field]) return prev;
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
-  }
-
-  function toCategoryLinkInputs(): CategoryLinkInput[] {
-    return links
-      .filter((link) => link.enabled)
-      .map((link) => ({
-        category_id: link.category_id,
-        sort_order: link.sort_order,
-      }))
-      .sort((a, b) => a.sort_order - b.sort_order);
-  }
-
-  function categorySelection(): OrderedToggleSelection[] {
-    return links
-      .filter((link) => link.enabled)
-      .map((link) => ({
-        id: link.category_id,
-        sort_order: link.sort_order,
-      }));
-  }
-
-  function onCategoriesChange(next: OrderedToggleSelection[]) {
-    const selected = new Map(next.map((item) => [item.id, item.sort_order]));
-    setLinks((prev) =>
-      prev.map((link) => {
-        const sortOrder = selected.get(link.category_id);
-        if (sortOrder === undefined) {
-          return { ...link, enabled: false, sort_order: 0 };
-        }
-        return { ...link, enabled: true, sort_order: sortOrder };
-      }),
-    );
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
   }
 
   function onTypeChange(value: string | null) {
-    if (!value) return;
-    const next = value as ResourceType;
-    setType(next);
-    clearError("type");
-    clearError("url");
-    clearError("phone");
-    clearError("videoId");
-    clearError("body");
+    if (!value) return
+    const next = value as ResourceType
+    setType(next)
+    clearError("type")
+    clearError("url")
+    clearError("phone")
+    clearError("videoId")
+    clearError("body")
     // Clear payload fields that do not apply to the selected type.
-    if (next !== "website" && next !== "youtube") setUrl("");
-    if (next !== "hotline") setPhone("");
-    if (next !== "youtube") setVideoId("");
-    if (next !== "text") setBody("");
+    if (next !== "website" && next !== "youtube") setUrl("")
+    if (next !== "hotline") setPhone("")
+    if (next !== "youtube") setVideoId("")
+    if (next !== "text") setBody("")
+  }
+
+  function onImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null
+    event.target.value = ""
+    if (!file) return
+
+    const imageError = validateImageFile(file)
+    if (imageError) {
+      setErrors((prev) => ({ ...prev, image: imageError }))
+      return
+    }
+
+    setImageFile(file)
+    setClearExistingImage(false)
+    clearError("image")
+  }
+
+  function onClearImage() {
+    setImageFile(null)
+    setClearExistingImage(true)
+    clearError("image")
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+    event.preventDefault()
 
     const nextErrors = validateResourceFields({
       providerId,
@@ -234,66 +244,88 @@ export function ResourceFormSheet({
       phone,
       videoId,
       body,
-    });
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+    })
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
 
-    setPending(true);
+    setPending(true)
 
-    const formData = new FormData();
-    formData.set("provider_id", providerId);
-    formData.set("title", title);
-    formData.set("carousel_label", carouselLabel);
-    formData.set("summary", summary);
-    formData.set("type", type!);
-    formData.set("url", url);
-    formData.set("phone", phone);
-    formData.set("video_id", videoId);
-    formData.set("body", body);
-    formData.set("icon_key", iconKey);
-    formData.set("hero_image_url", heroImageUrl);
-    formData.set("is_active", isActive ? "true" : "false");
+    const formData = new FormData()
+    formData.set("provider_id", providerId)
+    formData.set("title", title)
+    formData.set("carousel_label", carouselLabel)
+    formData.set("summary", summary)
+    formData.set("type", type!)
+    formData.set("url", url)
+    formData.set("phone", phone)
+    formData.set("video_id", videoId)
+    formData.set("body", body)
+    formData.set("is_active", isActive ? "true" : "false")
 
     const result = isEdit
       ? await updateResource(resource!.id, formData)
-      : await createResource(formData);
+      : await createResource(formData)
 
     if (!result.ok) {
       toast.error(
         isEdit ? "Could not update resource" : "Could not create resource",
-        { description: result.error },
-      );
-      setPending(false);
-      return;
+        { description: result.error }
+      )
+      setPending(false)
+      return
     }
 
-    const resourceId = isEdit ? resource!.id : result.id;
-    if (resourceId) {
-      const linksResult = await syncResourceCategoryLinks(
-        resourceId,
-        toCategoryLinkInputs(),
-      );
-      if (!linksResult.ok) {
-        toast.error("Resource saved, but category links failed", {
-          description: linksResult.error,
-        });
-        setPending(false);
-        return;
+    const resourceId = isEdit ? resource!.id : result.id
+    if (!resourceId) {
+      toast.error("Resource saved, but missing id for follow-up steps")
+      setPending(false)
+      return
+    }
+
+    if (imageFile) {
+      const uploadResult = await uploadResourceImage(resourceId, imageFile)
+      if (!uploadResult.ok) {
+        toast.error("Resource saved, but thumbnail upload failed", {
+          description: uploadResult.error,
+        })
+        setPending(false)
+        return
+      }
+    } else if (isEdit && clearExistingImage && resource?.image_url) {
+      const clearResult = await clearResourceImage(resourceId)
+      if (!clearResult.ok) {
+        toast.error("Resource saved, but could not clear thumbnail", {
+          description: clearResult.error,
+        })
+        setPending(false)
+        return
       }
     }
 
-    toast.success(isEdit ? "Resource updated" : "Resource created");
-    setPending(false);
-    onSaved?.();
-    onOpenChange(false);
+    const linksResult = await syncResourceCategoryLinks(
+      resourceId,
+      categoryId ? [{ category_id: categoryId, sort_order: 0 }] : []
+    )
+    if (!linksResult.ok) {
+      toast.error("Resource saved, but category links failed", {
+        description: linksResult.error,
+      })
+      setPending(false)
+      return
+    }
+
+    toast.success(isEdit ? "Resource updated" : "Resource created")
+    setPending(false)
+    onSaved?.()
+    onOpenChange(false)
   }
 
   const textareaClassName = cn(
     "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:ring-3 md:text-sm dark:bg-input/30",
-    "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
-  );
+    "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
+  )
 
-  const canSubmit = !pending && providers.length > 0 && Boolean(providerId);
+  const canSubmit = !pending && providers.length > 0 && Boolean(providerId)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -318,12 +350,12 @@ export function ResourceFormSheet({
               value={providerId || null}
               onValueChange={(value) => {
                 if (value) {
-                  setProviderId(value);
-                  clearError("providerId");
+                  setProviderId(value)
+                  clearError("providerId")
                 }
               }}
               items={Object.fromEntries(
-                providers.map((provider) => [provider.id, provider.name]),
+                providers.map((provider) => [provider.id, provider.name])
               )}
             >
               <SelectTrigger
@@ -354,14 +386,60 @@ export function ResourceFormSheet({
               id="resource-title"
               value={title}
               onChange={(e) => {
-                setTitle(e.target.value);
-                clearError("title");
+                setTitle(e.target.value)
+                clearError("title")
               }}
               placeholder="CareerOneStop Job Search"
               aria-invalid={Boolean(errors.title) || undefined}
               className="h-9"
             />
             <FieldError message={errors.title} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="resource-image">Thumbnail</Label>
+            <div className="flex items-center gap-4">
+              <div className="bg-muted/40 flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 sm:size-32">
+                {displayedImageUrl ? (
+                  <img
+                    src={displayedImageUrl}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <ImageIcon className="text-muted-foreground size-8" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <Input
+                  ref={fileInputRef}
+                  id="resource-image"
+                  type="file"
+                  accept={RESOURCE_IMAGE_MIME_TYPES.join(",")}
+                  onChange={onImageChange}
+                  aria-invalid={Boolean(errors.image) || undefined}
+                  className="h-9 cursor-pointer file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {displayedImageUrl ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onClearImage}
+                      disabled={pending}
+                    >
+                      <Trash2 />
+                      Clear thumbnail
+                    </Button>
+                  ) : null}
+                  <p className="text-muted-foreground text-xs">
+                    JPEG, PNG, or WebP · max 2 MiB. Stored in resource-images.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <FieldError message={errors.image} />
           </div>
 
           <div className="space-y-2">
@@ -427,8 +505,8 @@ export function ResourceFormSheet({
                 type="url"
                 value={url}
                 onChange={(e) => {
-                  setUrl(e.target.value);
-                  clearError("url");
+                  setUrl(e.target.value)
+                  clearError("url")
                 }}
                 placeholder="https://…"
                 aria-invalid={Boolean(errors.url) || undefined}
@@ -447,9 +525,9 @@ export function ResourceFormSheet({
                   type="url"
                   value={url}
                   onChange={(e) => {
-                    setUrl(e.target.value);
-                    clearError("url");
-                    clearError("videoId");
+                    setUrl(e.target.value)
+                    clearError("url")
+                    clearError("videoId")
                   }}
                   placeholder="https://www.youtube.com/watch?v=…"
                   aria-invalid={Boolean(errors.url) || undefined}
@@ -463,9 +541,9 @@ export function ResourceFormSheet({
                   id="resource-video-id"
                   value={videoId}
                   onChange={(e) => {
-                    setVideoId(e.target.value);
-                    clearError("videoId");
-                    clearError("url");
+                    setVideoId(e.target.value)
+                    clearError("videoId")
+                    clearError("url")
                   }}
                   placeholder="dQw4w9WgXcQ"
                   aria-invalid={Boolean(errors.videoId) || undefined}
@@ -489,8 +567,8 @@ export function ResourceFormSheet({
                 type="tel"
                 value={phone}
                 onChange={(e) => {
-                  setPhone(e.target.value);
-                  clearError("phone");
+                  setPhone(e.target.value)
+                  clearError("phone")
                 }}
                 placeholder="1-800-555-0100"
                 aria-invalid={Boolean(errors.phone) || undefined}
@@ -507,8 +585,8 @@ export function ResourceFormSheet({
                 id="resource-body"
                 value={body}
                 onChange={(e) => {
-                  setBody(e.target.value);
-                  clearError("body");
+                  setBody(e.target.value)
+                  clearError("body")
                 }}
                 placeholder="Guidance or informational copy…"
                 rows={5}
@@ -518,59 +596,6 @@ export function ResourceFormSheet({
               <FieldError message={errors.body} />
             </div>
           ) : null}
-
-          <div className="space-y-2">
-            <Label htmlFor="resource-hero">Hero image URL</Label>
-            <Input
-              id="resource-hero"
-              type="url"
-              value={heroImageUrl}
-              onChange={(e) => setHeroImageUrl(e.target.value)}
-              placeholder="https://…"
-              className="h-9"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Icon</Label>
-            <div className="grid grid-cols-5 gap-2">
-              <button
-                type="button"
-                onClick={() => setIconKey("")}
-                className={cn(
-                  "border-border flex flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[10px] transition-colors",
-                  iconKey === ""
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "text-muted-foreground hover:bg-muted/60",
-                )}
-                aria-pressed={iconKey === ""}
-              >
-                None
-              </button>
-              {CATEGORY_ICON_KEYS.map((key) => {
-                const Icon = categoryIcon(key);
-                const selected = iconKey === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setIconKey(key)}
-                    className={cn(
-                      "border-border flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[10px] transition-colors",
-                      selected
-                        ? "border-primary bg-primary/5 text-foreground"
-                        : "text-muted-foreground hover:bg-muted/60",
-                    )}
-                    aria-pressed={selected}
-                    title={key}
-                  >
-                    <Icon className="size-4" />
-                    <span className="max-w-full truncate">{key}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           <div className="flex items-center gap-2">
             <Checkbox
@@ -583,18 +608,40 @@ export function ResourceFormSheet({
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium">Categories</p>
-            <OrderedTogglePicker
-              items={categories.map((category) => ({
-                id: category.id,
-                label: category.name,
-              }))}
-              selected={categorySelection()}
-              onChange={onCategoriesChange}
-              orderHeading="Carousel order"
-              emptyOrderHint="Select categories above to set carousel order."
-              emptyItemsHint="No active categories yet."
-            />
+            <Label>Category</Label>
+            <Select
+              value={categoryId || NO_CATEGORY}
+              onValueChange={(value) => {
+                if (!value || value === NO_CATEGORY) {
+                  setCategoryId("")
+                  return
+                }
+                setCategoryId(value)
+              }}
+              items={{
+                [NO_CATEGORY]: "No category",
+                ...Object.fromEntries(
+                  categories.map((category) => [category.id, category.name])
+                ),
+              }}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CATEGORY}>No category</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {categories.length === 0 ? (
+              <p className="text-muted-foreground text-xs">
+                No active categories yet.
+              </p>
+            ) : null}
           </div>
 
           <SheetFooter className="mt-auto px-0">
@@ -622,5 +669,5 @@ export function ResourceFormSheet({
         </form>
       </SheetContent>
     </Sheet>
-  );
+  )
 }

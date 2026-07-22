@@ -41,7 +41,6 @@ export function LibraryPage() {
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <PageHeader
         title="Library"
-        description="Collections and curated packs available to your workspace."
         actions={
           <Button nativeButton={false} render={<Link to="/dashboard/resources" />}>
             <FolderOpen />

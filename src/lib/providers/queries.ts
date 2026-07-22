@@ -9,18 +9,35 @@ export type ListProvidersResult = {
   pageSize: number
 }
 
-export async function listProvidersPage(
-  page = 1
+/** Escape LIKE wildcards so user input is treated literally. */
+function sanitizeSearch(search: string | null | undefined): string | null {
+  const trimmed = search?.trim()
+  if (!trimmed) return null
+  return trimmed.replace(/[%_,]/g, "")
+}
+
+export async function listProviders(
+  page = 1,
+  search?: string | null
 ): Promise<ListProvidersResult> {
   const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * PROVIDERS_PAGE_SIZE
+  const q = sanitizeSearch(search)
 
-  const { data, count, error } = await supabase
+  let query = supabase
     .from("providers")
     .select("*", { count: "exact" })
     .order("name")
-    .range(from, from + PROVIDERS_PAGE_SIZE - 1)
+
+  if (q) {
+    query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+  }
+
+  const { data, count, error } = await query.range(
+    from,
+    from + PROVIDERS_PAGE_SIZE - 1
+  )
 
   if (error) {
     throw new Error(error.message)

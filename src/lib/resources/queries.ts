@@ -13,13 +13,22 @@ export type ListResourcesResult = {
   pageSize: number
 }
 
+/** Escape LIKE wildcards so user input is treated literally. */
+function sanitizeSearch(search: string | null | undefined): string | null {
+  const trimmed = search?.trim()
+  if (!trimmed) return null
+  return trimmed.replace(/[%_,]/g, "")
+}
+
 export async function listResources(
   page = 1,
-  providerId?: string | null
+  providerId?: string | null,
+  search?: string | null
 ): Promise<ListResourcesResult> {
   const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * RESOURCES_PAGE_SIZE
+  const q = sanitizeSearch(search)
 
   let query = supabase
     .from("resources")
@@ -28,13 +37,21 @@ export async function listResources(
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
-    .range(from, from + RESOURCES_PAGE_SIZE - 1)
 
   if (providerId) {
     query = query.eq("provider_id", providerId)
   }
 
-  const { data, count, error } = await query
+  if (q) {
+    query = query.or(
+      `title.ilike.%${q}%,summary.ilike.%${q}%,carousel_label.ilike.%${q}%`
+    )
+  }
+
+  const { data, count, error } = await query.range(
+    from,
+    from + RESOURCES_PAGE_SIZE - 1
+  )
 
   if (error) {
     throw new Error(error.message)
@@ -48,12 +65,14 @@ export async function listResources(
   }
 }
 
-export async function listProviders(): Promise<ProviderOption[]> {
+/** Active providers for resource forms and filters. */
+export async function listProvidersForSelect(): Promise<ProviderOption[]> {
   const supabase = getSupabaseBrowserClient()
 
   const { data, error } = await supabase
     .from("providers")
     .select("id, name")
+    .eq("is_active", true)
     .order("name")
 
   if (error) {

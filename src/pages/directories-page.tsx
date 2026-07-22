@@ -6,14 +6,18 @@ import { PageHeader } from "@/components/dashboard/page-header"
 import { DirectoriesPageSkeleton } from "@/components/dashboard/page-loading"
 import { useDocumentTitle } from "@/hooks/use-document-title"
 import { listDirectories } from "@/lib/directories/queries"
-import type { Directory } from "@/lib/directories/types"
+import type { DirectoryWithRelations } from "@/lib/directories/types"
+import { listStatesForSelect } from "@/lib/locations/queries"
+import type { StateOption } from "@/lib/locations/types"
 
 export function DirectoriesPage() {
   useDocumentTitle("Directories")
   const [searchParams] = useSearchParams()
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
+  const search = searchParams.get("q")?.trim() || null
 
-  const [directories, setDirectories] = useState<Directory[]>([])
+  const [directories, setDirectories] = useState<DirectoryWithRelations[]>([])
+  const [stateOptions, setStateOptions] = useState<StateOption[]>([])
   const [total, setTotal] = useState(0)
   const [pageSize, setPageSize] = useState(20)
   const [error, setError] = useState<string | null>(null)
@@ -23,16 +27,20 @@ export function DirectoriesPage() {
     setLoading(true)
     setError(null)
     try {
-      const result = await listDirectories(page)
+      const [result, states] = await Promise.all([
+        listDirectories(page, search),
+        listStatesForSelect(),
+      ])
       setDirectories(result.directories)
       setTotal(result.total)
       setPageSize(result.pageSize)
+      setStateOptions(states)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load directories")
     } finally {
       setLoading(false)
     }
-  }, [page])
+  }, [page, search])
 
   useEffect(() => {
     void loadData()
@@ -44,10 +52,7 @@ export function DirectoriesPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title="Directories"
-        description="Regional starting points shown as a carousel on the Resources tab. Standalone — no provider or category link."
-      />
+      <PageHeader title="Directories" />
 
       {error ? (
         <div
@@ -63,6 +68,8 @@ export function DirectoriesPage() {
         total={total}
         page={page}
         pageSize={pageSize}
+        search={search}
+        stateOptions={stateOptions}
         onMutated={loadData}
       />
     </div>

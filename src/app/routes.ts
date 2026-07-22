@@ -2,6 +2,7 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes"
 
 const dashboardChildRoutes: RouteConfig = [
   index("routes/dashboard._index.tsx"),
+  route("analytics", "routes/dashboard.analytics.tsx"),
   route("resources", "routes/dashboard.resources.tsx"),
   route("providers", "routes/dashboard.providers.tsx"),
   route("directories", "routes/dashboard.directories.tsx"),

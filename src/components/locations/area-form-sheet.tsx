@@ -2,10 +2,7 @@ import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
-import {
-  createArea,
-  updateArea,
-} from "@/lib/locations/actions"
+import { createArea, updateArea } from "@/lib/locations/actions"
 import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -47,25 +44,22 @@ export function AreaFormSheet({
   onSaved,
   area,
   stateOptions,
-  defaultStateCode: _defaultStateCode,
+  defaultStateCode,
 }: AreaFormSheetProps) {
   const isEdit = Boolean(area)
   const [pending, setPending] = React.useState(false)
   const [stateCode, setStateCode] = React.useState("")
   const [name, setName] = React.useState("")
-  const [sortOrder, setSortOrder] = React.useState(0)
   const [isActive, setIsActive] = React.useState(false)
   const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
     if (!open) return
-    // Edit keeps existing state; create starts empty (required select).
-    setStateCode(area?.state_code ?? "")
+    setStateCode(area?.state_code ?? defaultStateCode ?? "")
     setName(area?.name ?? "")
-    setSortOrder(area?.sort_order ?? 0)
     setIsActive(area?.is_active ?? false)
     setErrors({})
-  }, [open, area])
+  }, [open, area, defaultStateCode])
 
   const stateItems = Object.fromEntries(
     stateOptions.map((s) => [s.code, `${s.name} (${s.code})`])
@@ -94,7 +88,6 @@ export function AreaFormSheet({
     const formData = new FormData()
     formData.set("state_code", stateCode)
     formData.set("name", name)
-    formData.set("sort_order", String(sortOrder))
     formData.set("is_active", isActive ? "true" : "false")
 
     const result = isEdit
@@ -115,8 +108,7 @@ export function AreaFormSheet({
     onOpenChange(false)
   }
 
-  const canSubmit =
-    !pending && stateOptions.length > 0 && Boolean(stateCode)
+  const canSubmit = !pending && stateOptions.length > 0 && Boolean(stateCode)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -188,23 +180,15 @@ export function AreaFormSheet({
                 setName(e.target.value)
                 clearError("name")
               }}
-              placeholder="Dallas County"
+              placeholder="Dallas"
               aria-invalid={Boolean(errors.name) || undefined}
               className="h-9"
             />
             <FieldError message={errors.name} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="area-sort">Sort order</Label>
-            <Input
-              id="area-sort"
-              type="number"
-              min={0}
-              value={sortOrder}
-              onChange={(e) => setSortOrder(Number(e.target.value))}
-              className="h-9"
-            />
+            <p className="text-muted-foreground text-xs">
+              Match onboarding and directory names exactly (e.g. spreadsheet
+              “Dallas” → Dallas).
+            </p>
           </div>
 
           <div className="flex items-center gap-2">

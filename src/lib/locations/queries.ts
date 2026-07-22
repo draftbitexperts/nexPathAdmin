@@ -1,10 +1,5 @@
 import { LOCATIONS_PAGE_SIZE } from "@/lib/locations/constants"
-import type {
-  Area,
-  CommunityDuration,
-  State,
-  StateOption,
-} from "@/lib/locations/types"
+import type { Area, State, StateOption } from "@/lib/locations/types"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 export type ListStatesResult = {
@@ -16,13 +11,6 @@ export type ListStatesResult = {
 
 export type ListAreasResult = {
   areas: Area[]
-  total: number
-  page: number
-  pageSize: number
-}
-
-export type ListCommunityDurationsResult = {
-  durations: CommunityDuration[]
   total: number
   page: number
   pageSize: number
@@ -85,21 +73,30 @@ export async function listStatesForSelect(): Promise<StateOption[]> {
   return (data ?? []) as StateOption[]
 }
 
+/**
+ * List areas ordered by state_code, then name.
+ * Optional `stateCode` filters to one state (Areas tab filter).
+ */
 export async function listAreas(
-  stateCode: string,
   page = 1,
-  search?: string | null
+  search?: string | null,
+  stateCode?: string | null
 ): Promise<ListAreasResult> {
   const supabase = getSupabaseBrowserClient()
   const safePage = Math.max(1, page)
   const from = (safePage - 1) * LOCATIONS_PAGE_SIZE
   const q = sanitizeSearch(search)
+  const code = stateCode?.trim().toUpperCase() || null
 
   let query = supabase
     .from("areas")
     .select("*", { count: "exact" })
-    .eq("state_code", stateCode)
-    .order("sort_order")
+    .order("state_code")
+    .order("name")
+
+  if (code) {
+    query = query.eq("state_code", code)
+  }
 
   if (q) {
     query = query.ilike("name", `%${q}%`)
@@ -130,7 +127,7 @@ export async function listAreasByState(stateCode: string): Promise<Area[]> {
     .from("areas")
     .select("*")
     .eq("state_code", stateCode)
-    .order("sort_order")
+    .order("name")
 
   if (error) {
     throw new Error(error.message)
@@ -139,39 +136,4 @@ export async function listAreasByState(stateCode: string): Promise<Area[]> {
   return (data ?? []) as Area[]
 }
 
-export async function listCommunityDurations(
-  page = 1,
-  search?: string | null
-): Promise<ListCommunityDurationsResult> {
-  const supabase = getSupabaseBrowserClient()
-  const safePage = Math.max(1, page)
-  const from = (safePage - 1) * LOCATIONS_PAGE_SIZE
-  const q = sanitizeSearch(search)
-
-  let query = supabase
-    .from("community_durations")
-    .select("*", { count: "exact" })
-    .order("sort_order")
-
-  if (q) {
-    query = query.ilike("label", `%${q}%`)
-  }
-
-  const { data, count, error } = await query.range(
-    from,
-    from + LOCATIONS_PAGE_SIZE - 1
-  )
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return {
-    durations: (data ?? []) as CommunityDuration[],
-    total: count ?? 0,
-    page: safePage,
-    pageSize: LOCATIONS_PAGE_SIZE,
-  }
-}
-
-export type { Area, CommunityDuration, State, StateOption }
+export type { Area, State, StateOption }

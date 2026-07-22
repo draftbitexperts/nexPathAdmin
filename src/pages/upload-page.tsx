@@ -36,10 +36,7 @@ export function UploadPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title="Upload"
-        description="Add a new resource to the NexPath library."
-      />
+      <PageHeader title="Upload" />
 
       <Card className="border-border/60 mx-auto max-w-2xl shadow-sm">
         <CardHeader>

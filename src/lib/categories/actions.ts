@@ -5,16 +5,14 @@ import {
 } from "@/lib/supabase/require-auth"
 
 import { slugify } from "@/lib/categories/constants"
-import {
-  CATEGORY_SURFACES,
-  type CategoryInput,
-  type CategorySurface,
-  type PlacementInput,
-} from "@/lib/categories/types"
+import type { CategoryInput } from "@/lib/categories/types"
 
 function formatMutationError(error: { message: string; code?: string }): string {
   const rls = formatRlsMutationError(error)
   if (rls !== error.message) return rls
+  if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
+    return "A category with that slug already exists."
+  }
   return error.message
 }
 
@@ -43,6 +41,22 @@ function parseCategoryInput(formData: FormData): CategoryInput | string {
   }
 }
 
+function toRowPayload(parsed: CategoryInput, { includeSlug }: { includeSlug: boolean }) {
+  const row = {
+    name: parsed.name,
+    short_description: parsed.short_description,
+    long_description: parsed.long_description,
+    icon_key: parsed.icon_key,
+    is_active: parsed.is_active ?? true,
+  }
+
+  if (includeSlug) {
+    return { ...row, slug: parsed.slug }
+  }
+
+  return row
+}
+
 export async function createCategory(
   formData: FormData
 ): Promise<ActionResult> {
@@ -54,14 +68,7 @@ export async function createCategory(
 
   const { data, error } = await supabase
     .from("categories")
-    .insert({
-      slug: parsed.slug,
-      name: parsed.name,
-      short_description: parsed.short_description,
-      long_description: parsed.long_description,
-      icon_key: parsed.icon_key,
-      is_active: parsed.is_active ?? true,
-    })
+    .insert(toRowPayload(parsed, { includeSlug: true }))
     .select("id")
     .single()
 
@@ -84,13 +91,7 @@ export async function updateCategory(
 
   const { error } = await supabase
     .from("categories")
-    .update({
-      name: parsed.name,
-      short_description: parsed.short_description,
-      long_description: parsed.long_description,
-      icon_key: parsed.icon_key,
-      is_active: parsed.is_active ?? true,
-    })
+    .update(toRowPayload(parsed, { includeSlug: false }))
     .eq("id", id)
 
   if (error) return { ok: false, error: formatMutationError(error) }
@@ -98,7 +99,7 @@ export async function updateCategory(
   return { ok: true }
 }
 
-/** Prefer deactivating over hard delete — hide the category from surfaces. */
+/** Prefer deactivating over hard delete — hide the category from the app. */
 export async function setCategoryActive(
   id: string,
   isActive: boolean
@@ -119,7 +120,7 @@ export async function setCategoryActive(
 }
 
 /**
- * Hard delete cascades to placements, tasks, and links.
+ * Hard delete cascades to tasks and resource links.
  * Prefer {@link setCategoryActive} with `false` to hide instead.
  */
 export async function deleteCategory(id: string): Promise<ActionResult> {
@@ -131,92 +132,6 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
   const { error } = await supabase.from("categories").delete().eq("id", id)
 
   if (error) return { ok: false, error: formatMutationError(error) }
-
-  return { ok: true }
-}
-
-export async function upsertPlacement(
-  categoryId: string,
-  surface: CategorySurface,
-  sortOrder: number
-): Promise<ActionResult> {
-  if (!categoryId) return { ok: false, error: "Missing category id." }
-  if (!CATEGORY_SURFACES.includes(surface)) {
-    return { ok: false, error: "Invalid surface." }
-  }
-
-  const { supabase, error: authError } = await requireAuthenticatedClient()
-  if (authError || !supabase) return { ok: false, error: authError }
-
-  const { error } = await supabase.from("category_placements").upsert({
-    category_id: categoryId,
-    surface,
-    sort_order: sortOrder,
-  })
-
-  if (error) return { ok: false, error: formatMutationError(error) }
-
-  return { ok: true }
-}
-
-export async function removePlacement(
-  categoryId: string,
-  surface: CategorySurface
-): Promise<ActionResult> {
-  if (!categoryId) return { ok: false, error: "Missing category id." }
-
-  const { supabase, error: authError } = await requireAuthenticatedClient()
-  if (authError || !supabase) return { ok: false, error: authError }
-
-  const { error } = await supabase
-    .from("category_placements")
-    .delete()
-    .eq("category_id", categoryId)
-    .eq("surface", surface)
-
-  if (error) return { ok: false, error: formatMutationError(error) }
-
-  return { ok: true }
-}
-
-/** Replace all placements for a category in one round-trip. */
-export async function syncCategoryPlacements(
-  categoryId: string,
-  placements: PlacementInput[]
-): Promise<ActionResult> {
-  if (!categoryId) return { ok: false, error: "Missing category id." }
-
-  for (const placement of placements) {
-    if (!CATEGORY_SURFACES.includes(placement.surface)) {
-      return { ok: false, error: `Invalid surface: ${placement.surface}` }
-    }
-  }
-
-  const { supabase, error: authError } = await requireAuthenticatedClient()
-  if (authError || !supabase) return { ok: false, error: authError }
-
-  const { error: deleteError } = await supabase
-    .from("category_placements")
-    .delete()
-    .eq("category_id", categoryId)
-
-  if (deleteError) return { ok: false, error: formatMutationError(deleteError) }
-
-  if (placements.length > 0) {
-    const { error: insertError } = await supabase
-      .from("category_placements")
-      .insert(
-        placements.map((p) => ({
-          category_id: categoryId,
-          surface: p.surface,
-          sort_order: p.sort_order,
-        }))
-      )
-
-    if (insertError) {
-      return { ok: false, error: formatMutationError(insertError) }
-    }
-  }
 
   return { ok: true }
 }

@@ -1,6 +1,5 @@
 import {
   type ActionResult,
-  formatRlsMutationError,
   requireAuthenticatedClient,
 } from "@/lib/supabase/require-auth"
 
@@ -8,7 +7,6 @@ import { normalizeStateCode } from "@/lib/locations/constants"
 import type {
   Area,
   AreaInput,
-  CommunityDurationInput,
   StateAreaSyncItem,
   StateInput,
 } from "@/lib/locations/types"
@@ -31,12 +29,6 @@ function formatMutationError(error: { message: string; code?: string }): string 
   return error.message
 }
 
-function parseSortOrder(raw: string): number | string {
-  const sort_order = Number(raw.trim())
-  if (!Number.isFinite(sort_order)) return "Sort order must be a number."
-  return sort_order
-}
-
 function parseStateInput(
   formData: FormData,
   { requireCode }: { requireCode: boolean }
@@ -44,59 +36,33 @@ function parseStateInput(
   const code = normalizeStateCode(String(formData.get("code") ?? ""))
   const name = String(formData.get("name") ?? "").trim()
   const has_local_areas = formData.get("has_local_areas") !== "false"
-  const sortOrderResult = parseSortOrder(
-    String(formData.get("sort_order") ?? "0")
-  )
   const is_active = formData.get("is_active") !== "false"
 
   if (requireCode && !code) return "Code is required."
   if (!name) return "Name is required."
-  if (typeof sortOrderResult === "string") return sortOrderResult
 
   return {
     code,
     name,
     has_local_areas,
-    sort_order: sortOrderResult,
     is_active,
   }
 }
 
-function parseAreaInput(formData: FormData): AreaInput | string {
+function parseAreaInput(
+  formData: FormData,
+  { requireState }: { requireState: boolean }
+): AreaInput | string {
   const state_code = normalizeStateCode(String(formData.get("state_code") ?? ""))
   const name = String(formData.get("name") ?? "").trim()
-  const sortOrderResult = parseSortOrder(
-    String(formData.get("sort_order") ?? "0")
-  )
   const is_active = formData.get("is_active") !== "false"
 
-  if (!state_code) return "State is required."
+  if (requireState && !state_code) return "State is required."
   if (!name) return "Name is required."
-  if (typeof sortOrderResult === "string") return sortOrderResult
 
   return {
     state_code,
     name,
-    sort_order: sortOrderResult,
-    is_active,
-  }
-}
-
-function parseDurationInput(
-  formData: FormData
-): CommunityDurationInput | string {
-  const label = String(formData.get("label") ?? "").trim()
-  const sortOrderResult = parseSortOrder(
-    String(formData.get("sort_order") ?? "0")
-  )
-  const is_active = formData.get("is_active") !== "false"
-
-  if (!label) return "Label is required."
-  if (typeof sortOrderResult === "string") return sortOrderResult
-
-  return {
-    label,
-    sort_order: sortOrderResult,
     is_active,
   }
 }
@@ -114,7 +80,6 @@ export async function createState(formData: FormData): Promise<ActionResult> {
     code: parsed.code,
     name: parsed.name,
     has_local_areas: parsed.has_local_areas,
-    sort_order: parsed.sort_order,
     is_active: parsed.is_active ?? true,
   })
 
@@ -141,7 +106,6 @@ export async function updateState(
     .update({
       name: parsed.name,
       has_local_areas: parsed.has_local_areas,
-      sort_order: parsed.sort_order,
       is_active: parsed.is_active ?? true,
     })
     .eq("code", stateCode)
@@ -198,7 +162,7 @@ export async function deleteState(code: string): Promise<ActionResult> {
 /* ─── Areas ─── */
 
 export async function createArea(formData: FormData): Promise<ActionResult> {
-  const parsed = parseAreaInput(formData)
+  const parsed = parseAreaInput(formData, { requireState: true })
   if (typeof parsed === "string") return { ok: false, error: parsed }
 
   const { supabase, error: authError } = await requireAuthenticatedClient()
@@ -209,13 +173,20 @@ export async function createArea(formData: FormData): Promise<ActionResult> {
     .insert({
       state_code: parsed.state_code,
       name: parsed.name,
-      sort_order: parsed.sort_order,
       is_active: parsed.is_active ?? true,
     })
     .select("id")
     .single()
 
   if (error) return { ok: false, error: formatMutationError(error) }
+
+  // Area-scoped directories need the onboarding area question for this state.
+  const { error: stateError } = await supabase
+    .from("states")
+    .update({ has_local_areas: true })
+    .eq("code", parsed.state_code)
+
+  if (stateError) return { ok: false, error: formatMutationError(stateError) }
 
   return { ok: true, id: data.id }
 }
@@ -226,7 +197,7 @@ export async function updateArea(
 ): Promise<ActionResult> {
   if (!id) return { ok: false, error: "Missing area id." }
 
-  const parsed = parseAreaInput(formData)
+  const parsed = parseAreaInput(formData, { requireState: false })
   if (typeof parsed === "string") return { ok: false, error: parsed }
 
   const { supabase, error: authError } = await requireAuthenticatedClient()
@@ -236,7 +207,6 @@ export async function updateArea(
     .from("areas")
     .update({
       name: parsed.name,
-      sort_order: parsed.sort_order,
       is_active: parsed.is_active ?? true,
     })
     .eq("id", id)
@@ -297,6 +267,7 @@ export async function fetchAreasForState(
 
 /**
  * Replace a state's areas: update kept rows, insert new ones, delete removed.
+ * Sets has_local_areas when the state ends with at least one area.
  */
 export async function syncStateAreas(
   stateCode: string,
@@ -308,7 +279,7 @@ export async function syncStateAreas(
   const cleaned: StateAreaSyncItem[] = []
   const seenNames = new Set<string>()
 
-  for (const [index, area] of areas.entries()) {
+  for (const area of areas) {
     const name = area.name.trim()
     if (!name) return { ok: false, error: "Area name is required." }
     const nameKey = name.toLowerCase()
@@ -319,7 +290,6 @@ export async function syncStateAreas(
     cleaned.push({
       id: area.id,
       name,
-      sort_order: Number.isFinite(area.sort_order) ? area.sort_order : index,
       is_active: area.is_active ?? true,
     })
   }
@@ -356,7 +326,6 @@ export async function syncStateAreas(
         .from("areas")
         .update({
           name: area.name,
-          sort_order: area.sort_order,
           is_active: area.is_active ?? true,
         })
         .eq("id", area.id)
@@ -367,7 +336,6 @@ export async function syncStateAreas(
       const { error } = await supabase.from("areas").insert({
         state_code: code,
         name: area.name,
-        sort_order: area.sort_order,
         is_active: area.is_active ?? true,
       })
 
@@ -375,94 +343,14 @@ export async function syncStateAreas(
     }
   }
 
-  return { ok: true }
-}
+  if (cleaned.length > 0) {
+    const { error: stateError } = await supabase
+      .from("states")
+      .update({ has_local_areas: true })
+      .eq("code", code)
 
-/* ─── Community durations ─── */
-
-export async function createCommunityDuration(
-  formData: FormData
-): Promise<ActionResult> {
-  const parsed = parseDurationInput(formData)
-  if (typeof parsed === "string") return { ok: false, error: parsed }
-
-  const { supabase, error: authError } = await requireAuthenticatedClient()
-  if (authError || !supabase) return { ok: false, error: authError }
-
-  const { data, error } = await supabase
-    .from("community_durations")
-    .insert({
-      label: parsed.label,
-      sort_order: parsed.sort_order,
-      is_active: parsed.is_active ?? true,
-    })
-    .select("id")
-    .single()
-
-  if (error) return { ok: false, error: formatMutationError(error) }
-
-  return { ok: true, id: data.id }
-}
-
-export async function updateCommunityDuration(
-  id: string,
-  formData: FormData
-): Promise<ActionResult> {
-  if (!id) return { ok: false, error: "Missing duration id." }
-
-  const parsed = parseDurationInput(formData)
-  if (typeof parsed === "string") return { ok: false, error: parsed }
-
-  const { supabase, error: authError } = await requireAuthenticatedClient()
-  if (authError || !supabase) return { ok: false, error: authError }
-
-  const { error } = await supabase
-    .from("community_durations")
-    .update({
-      label: parsed.label,
-      sort_order: parsed.sort_order,
-      is_active: parsed.is_active ?? true,
-    })
-    .eq("id", id)
-
-  if (error) return { ok: false, error: formatMutationError(error) }
-
-  return { ok: true }
-}
-
-export async function setCommunityDurationActive(
-  id: string,
-  isActive: boolean
-): Promise<ActionResult> {
-  if (!id) return { ok: false, error: "Missing duration id." }
-
-  const { supabase, error: authError } = await requireAuthenticatedClient()
-  if (authError || !supabase) return { ok: false, error: authError }
-
-  const { error } = await supabase
-    .from("community_durations")
-    .update({ is_active: isActive })
-    .eq("id", id)
-
-  if (error) return { ok: false, error: formatMutationError(error) }
-
-  return { ok: true }
-}
-
-export async function deleteCommunityDuration(
-  id: string
-): Promise<ActionResult> {
-  if (!id) return { ok: false, error: "Missing duration id." }
-
-  const { supabase, error: authError } = await requireAuthenticatedClient()
-  if (authError || !supabase) return { ok: false, error: authError }
-
-  const { error } = await supabase
-    .from("community_durations")
-    .delete()
-    .eq("id", id)
-
-  if (error) return { ok: false, error: formatMutationError(error) }
+    if (stateError) return { ok: false, error: formatMutationError(stateError) }
+  }
 
   return { ok: true }
 }

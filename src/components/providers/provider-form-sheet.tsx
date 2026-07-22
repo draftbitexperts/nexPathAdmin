@@ -43,7 +43,7 @@ export function ProviderFormSheet({
   const [name, setName] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [logoUrl, setLogoUrl] = React.useState("")
-  const [isActive, setIsActive] = React.useState(false)
+  const [isActive, setIsActive] = React.useState(true)
   const [errors, setErrors] = React.useState<FieldErrors>({})
 
   React.useEffect(() => {
@@ -51,7 +51,7 @@ export function ProviderFormSheet({
     setName(provider?.name ?? "")
     setDescription(provider?.description ?? "")
     setLogoUrl(provider?.logo_url ?? "")
-    setIsActive(provider?.is_active ?? false)
+    setIsActive(provider?.is_active ?? true)
     setErrors({})
   }, [open, provider])
 
