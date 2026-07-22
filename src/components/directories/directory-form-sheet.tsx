@@ -31,7 +31,7 @@ import type {
   DirectoryWithRelations,
 } from "@/lib/directories/types"
 import type { StateOption } from "@/lib/locations/types"
-import { cn } from "@/lib/utils"
+import { cn, isValidHttpUrl } from "@/lib/utils"
 
 type FieldErrors = {
   name?: string
@@ -132,7 +132,11 @@ export function DirectoryFormSheet({
 
     const nextErrors: FieldErrors = {}
     if (!name.trim()) nextErrors.name = "Name is required"
-    if (!externalUrl.trim()) nextErrors.externalUrl = "External URL is required"
+    if (!externalUrl.trim()) {
+      nextErrors.externalUrl = "External URL is required"
+    } else if (!isValidHttpUrl(externalUrl)) {
+      nextErrors.externalUrl = "Enter a valid URL"
+    }
     if (!stateCode) nextErrors.stateCode = "State is required"
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return

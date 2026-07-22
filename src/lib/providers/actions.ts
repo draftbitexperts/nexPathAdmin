@@ -5,6 +5,7 @@ import {
 } from "@/lib/supabase/require-auth"
 
 import type { ProviderInput } from "@/lib/providers/types"
+import { isValidHttpUrl, normalizeHttpUrl } from "@/lib/utils"
 
 function formatMutationError(error: { message: string; code?: string }): string {
   const rls = formatRlsMutationError(error)
@@ -33,11 +34,12 @@ function parseProviderInput(formData: FormData): ProviderInput | string {
   const is_active = formData.get("is_active") !== "false"
 
   if (!name) return "Name is required."
+  if (logo_url && !isValidHttpUrl(logo_url)) return "Enter a valid logo URL."
 
   return {
     name,
     description,
-    logo_url,
+    logo_url: normalizeHttpUrl(logo_url) ?? "",
     is_active,
   }
 }

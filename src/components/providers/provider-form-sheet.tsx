@@ -19,10 +19,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import type { Provider } from "@/lib/providers/types"
-import { cn } from "@/lib/utils"
+import { cn, isValidHttpUrl } from "@/lib/utils"
 
 type FieldErrors = {
   name?: string
+  logoUrl?: string
 }
 
 type ProviderFormSheetProps = {
@@ -69,6 +70,9 @@ export function ProviderFormSheet({
 
     const nextErrors: FieldErrors = {}
     if (!name.trim()) nextErrors.name = "Name is required"
+    if (logoUrl.trim() && !isValidHttpUrl(logoUrl)) {
+      nextErrors.logoUrl = "Enter a valid URL"
+    }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -152,10 +156,15 @@ export function ProviderFormSheet({
               id="provider-logo"
               type="url"
               value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
+              onChange={(e) => {
+                setLogoUrl(e.target.value)
+                clearError("logoUrl")
+              }}
               placeholder="https://example.com/logo.png"
+              aria-invalid={Boolean(errors.logoUrl) || undefined}
               className="h-9"
             />
+            <FieldError message={errors.logoUrl} />
             {logoUrl ? (
               <div className="bg-muted/40 mt-2 flex size-12 items-center justify-center overflow-hidden rounded-lg border border-border/60">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

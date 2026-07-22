@@ -6,6 +6,7 @@ import {
 import { normalizeStateCode } from "@/lib/locations/constants"
 
 import type { DirectoryInput } from "@/lib/directories/types"
+import { isValidHttpUrl, normalizeHttpUrl } from "@/lib/utils"
 
 function formatMutationError(error: { message: string; code?: string }): string {
   const rls = formatRlsMutationError(error)
@@ -35,12 +36,13 @@ function parseDirectoryInput(formData: FormData): DirectoryInput | string {
 
   if (!name) return "Name is required."
   if (!external_url) return "External URL is required."
+  if (!isValidHttpUrl(external_url)) return "Enter a valid external URL."
   if (!state_code) return "State is required."
 
   return {
     name,
     description,
-    external_url,
+    external_url: normalizeHttpUrl(external_url)!,
     state_code,
     area_id,
     is_juvenile_justice_centered,
@@ -121,17 +123,13 @@ export async function setDirectoryActive(
   return { ok: true }
 }
 
-/** Soft-delete: sets `is_active` to false. */
 export async function deleteDirectory(id: string): Promise<ActionResult> {
   if (!id) return { ok: false, error: "Missing directory id." }
 
   const { supabase, error: authError } = await requireAuthenticatedClient()
   if (authError || !supabase) return { ok: false, error: authError }
 
-  const { error } = await supabase
-    .from("directories")
-    .update({ is_active: false })
-    .eq("id", id)
+  const { error } = await supabase.from("directories").delete().eq("id", id)
 
   if (error) return { ok: false, error: formatMutationError(error) }
 

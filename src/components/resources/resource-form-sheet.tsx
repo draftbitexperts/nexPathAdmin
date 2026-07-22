@@ -40,7 +40,7 @@ import {
   type ResourceType,
   type ResourceWithRelations,
 } from "@/lib/resources/types"
-import { cn } from "@/lib/utils"
+import { cn, isValidHttpUrl } from "@/lib/utils"
 
 const NO_CATEGORY = "__none__"
 
@@ -82,8 +82,12 @@ function validateResourceFields(fields: {
     return errors
   }
 
-  if (fields.type === "website" && !fields.url.trim()) {
-    errors.url = "URL is required"
+  if (fields.type === "website") {
+    if (!fields.url.trim()) {
+      errors.url = "URL is required"
+    } else if (!isValidHttpUrl(fields.url)) {
+      errors.url = "Enter a valid URL"
+    }
   }
   if (fields.type === "hotline" && !fields.phone.trim()) {
     errors.phone = "Phone is required"
@@ -92,6 +96,8 @@ function validateResourceFields(fields: {
     if (!fields.url.trim() && !fields.videoId.trim()) {
       errors.url = "URL or video ID is required"
       errors.videoId = "URL or video ID is required"
+    } else if (fields.url.trim() && !isValidHttpUrl(fields.url)) {
+      errors.url = "Enter a valid URL"
     }
   }
   if (fields.type === "text" && !fields.body.trim()) {

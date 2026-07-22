@@ -16,6 +16,7 @@ import {
   type ResourceInput,
   type ResourceType,
 } from "@/lib/resources/types"
+import { isValidHttpUrl, normalizeHttpUrl } from "@/lib/utils"
 
 function formatMutationError(error: { message: string; code?: string }): string {
   const rls = formatRlsMutationError(error)
@@ -49,12 +50,18 @@ function parseResourceInput(formData: FormData): ResourceInput | string {
 
   const type = typeRaw as ResourceType
 
-  if (type === "website" && !url) return "URL is required for website resources."
+  if (type === "website") {
+    if (!url) return "URL is required for website resources."
+    if (!isValidHttpUrl(url)) return "Enter a valid URL."
+  }
   if (type === "hotline" && !phone) {
     return "Phone is required for hotline resources."
   }
-  if (type === "youtube" && !url && !video_id) {
-    return "URL or video ID is required for YouTube resources."
+  if (type === "youtube") {
+    if (!url && !video_id) {
+      return "URL or video ID is required for YouTube resources."
+    }
+    if (url && !isValidHttpUrl(url)) return "Enter a valid URL."
   }
   if (type === "text" && !body) return "Body is required for text resources."
 
@@ -64,7 +71,7 @@ function parseResourceInput(formData: FormData): ResourceInput | string {
     carousel_label,
     summary,
     type,
-    url,
+    url: normalizeHttpUrl(url) ?? "",
     phone,
     video_id,
     body,

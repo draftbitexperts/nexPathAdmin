@@ -8,18 +8,31 @@ import {
   Power,
   PowerOff,
   Search,
+  Trash2,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { setDirectoryActive } from "@/lib/directories/actions"
+import {
+  deleteDirectory,
+  setDirectoryActive,
+} from "@/lib/directories/actions"
 import { DirectoryFormSheet } from "@/components/directories/directory-form-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
@@ -77,6 +90,9 @@ export function DirectoriesManager({
   const [editing, setEditing] = React.useState<DirectoryWithRelations | null>(
     null
   )
+  const [deleting, setDeleting] = React.useState<DirectoryWithRelations | null>(
+    null
+  )
   const [busyId, setBusyId] = React.useState<string | null>(null)
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
@@ -121,6 +137,20 @@ export function DirectoriesManager({
       toast.success(
         directory.is_active ? "Directory deactivated" : "Directory activated"
       )
+      onMutated?.()
+    }
+    setBusyId(null)
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return
+    setBusyId(deleting.id)
+    const result = await deleteDirectory(deleting.id)
+    if (!result.ok) {
+      toast.error("Could not delete directory", { description: result.error })
+    } else {
+      toast.success("Directory deleted")
+      setDeleting(null)
       onMutated?.()
     }
     setBusyId(null)
@@ -281,6 +311,14 @@ export function DirectoriesManager({
                             {directory.is_active ? <PowerOff /> : <Power />}
                             {directory.is_active ? "Deactivate" : "Activate"}
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setDeleting(directory)}
+                          >
+                            <Trash2 />
+                            Delete…
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -346,6 +384,35 @@ export function DirectoriesManager({
         stateOptions={stateOptions}
         onSaved={onMutated}
       />
+
+      <Dialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete “{deleting?.name}”?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the directory. Prefer deactivating to
+              hide it instead.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={busyId === deleting?.id}
+            >
+              Delete permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
