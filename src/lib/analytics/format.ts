@@ -1,5 +1,8 @@
 import { SCREEN_LABELS, SCREEN_VIEWED_EVENT } from "@/lib/analytics/constants"
-import type { AnalyticsEventProperties } from "@/lib/analytics/types"
+import type {
+  AnalyticsEventProperties,
+  AnalyticsEventTarget,
+} from "@/lib/analytics/types"
 
 export function humanizeSnake(value: string): string {
   return value
@@ -30,6 +33,29 @@ export function getEventScreen(
   properties: AnalyticsEventProperties | null | undefined
 ): string | null {
   return typeof properties?.screen === "string" ? properties.screen : null
+}
+
+export function getEmbeddedTarget(
+  properties: AnalyticsEventProperties | null | undefined
+): AnalyticsEventTarget | null {
+  const target = properties?.target
+  if (!target || typeof target !== "object" || Array.isArray(target)) return null
+  return target
+}
+
+export function getEventTargetLabel(
+  properties: AnalyticsEventProperties | null | undefined,
+  labels?: Record<string, string>
+): string | null {
+  const embedded = getEmbeddedTarget(properties)
+  if (embedded) {
+    const name = embedded.name ?? embedded.title
+    if (typeof name === "string" && name.trim()) return name
+  }
+
+  const target = getEventTarget(properties)
+  if (!target) return null
+  return labels?.[`${target.type}:${target.id}`] ?? null
 }
 
 export function getEventTarget(

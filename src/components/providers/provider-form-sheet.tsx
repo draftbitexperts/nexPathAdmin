@@ -167,7 +167,6 @@ export function ProviderFormSheet({
             <FieldError message={errors.logoUrl} />
             {logoUrl ? (
               <div className="bg-muted/40 mt-2 flex size-12 items-center justify-center overflow-hidden rounded-lg border border-border/60">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={logoUrl}
                   alt=""

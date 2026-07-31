@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "react-router"
 
 import { CategoriesManager } from "@/components/categories/categories-manager"
-import { PageHeader } from "@/components/dashboard/page-header"
 import { CategoriesPageSkeleton } from "@/components/dashboard/page-loading"
 import { useDocumentTitle } from "@/hooks/use-document-title"
 import { listCategories } from "@/lib/categories/queries"
 import type { Category } from "@/lib/categories/types"
+import {
+  listProvidersForSelect,
+  listResourcesForCategorySelect,
+} from "@/lib/resources/queries"
+import type { ProviderOption, ResourceOption } from "@/lib/resources/types"
 
 export function CategoriesPage() {
   useDocumentTitle("Categories")
@@ -15,6 +19,8 @@ export function CategoriesPage() {
   const search = searchParams.get("q")?.trim() || null
 
   const [categories, setCategories] = useState<Category[]>([])
+  const [resources, setResources] = useState<ResourceOption[]>([])
+  const [providers, setProviders] = useState<ProviderOption[]>([])
   const [total, setTotal] = useState(0)
   const [pageSize, setPageSize] = useState(20)
   const [error, setError] = useState<string | null>(null)
@@ -24,10 +30,17 @@ export function CategoriesPage() {
     setLoading(true)
     setError(null)
     try {
-      const result = await listCategories(page, search)
-      setCategories(result.categories)
-      setTotal(result.total)
-      setPageSize(result.pageSize)
+      const [categoriesResult, resourcesResult, providersResult] =
+        await Promise.all([
+          listCategories(page, search),
+          listResourcesForCategorySelect(),
+          listProvidersForSelect(),
+        ])
+      setCategories(categoriesResult.categories)
+      setResources(resourcesResult)
+      setProviders(providersResult)
+      setTotal(categoriesResult.total)
+      setPageSize(categoriesResult.pageSize)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load categories")
     } finally {
@@ -45,8 +58,6 @@ export function CategoriesPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Categories" />
-
       {error ? (
         <div
           role="alert"
@@ -58,6 +69,8 @@ export function CategoriesPage() {
 
       <CategoriesManager
         categories={categories}
+        resources={resources}
+        providers={providers}
         total={total}
         page={page}
         pageSize={pageSize}

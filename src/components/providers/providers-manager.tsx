@@ -218,7 +218,6 @@ export function ProvidersManager({
                     >
                       <span className="bg-muted text-muted-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
                         {provider.logo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={provider.logo_url}
                             alt=""

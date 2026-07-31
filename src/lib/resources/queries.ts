@@ -1,60 +1,59 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { RESOURCES_PAGE_SIZE } from "@/lib/resources/constants"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { RESOURCES_PAGE_SIZE } from "@/lib/resources/constants";
 import type {
   CategoryOption,
   ProviderOption,
+  ResourceOption,
   ResourceWithRelations,
-} from "@/lib/resources/types"
+} from "@/lib/resources/types";
 
 export type ListResourcesResult = {
-  resources: ResourceWithRelations[]
-  total: number
-  page: number
-  pageSize: number
-}
+  resources: ResourceWithRelations[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
 
 /** Escape LIKE wildcards so user input is treated literally. */
 function sanitizeSearch(search: string | null | undefined): string | null {
-  const trimmed = search?.trim()
-  if (!trimmed) return null
-  return trimmed.replace(/[%_,]/g, "")
+  const trimmed = search?.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/[%_,]/g, "");
 }
 
 export async function listResources(
   page = 1,
   providerId?: string | null,
-  search?: string | null
+  search?: string | null,
 ): Promise<ListResourcesResult> {
-  const supabase = getSupabaseBrowserClient()
-  const safePage = Math.max(1, page)
-  const from = (safePage - 1) * RESOURCES_PAGE_SIZE
-  const q = sanitizeSearch(search)
+  const supabase = getSupabaseBrowserClient();
+  const safePage = Math.max(1, page);
+  const from = (safePage - 1) * RESOURCES_PAGE_SIZE;
+  const q = sanitizeSearch(search);
 
   let query = supabase
     .from("resources")
     .select(
-      "*, providers(name), category_resources(category_id, sort_order, categories(name))",
-      { count: "exact" }
+      "*, providers(name), category_resources(category_id, sort_order, categories(title))",
+      { count: "exact" },
     )
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false });
 
   if (providerId) {
-    query = query.eq("provider_id", providerId)
+    query = query.eq("provider_id", providerId);
   }
 
   if (q) {
-    query = query.or(
-      `title.ilike.%${q}%,summary.ilike.%${q}%,carousel_label.ilike.%${q}%`
-    )
+    query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
   }
 
   const { data, count, error } = await query.range(
     from,
-    from + RESOURCES_PAGE_SIZE - 1
-  )
+    from + RESOURCES_PAGE_SIZE - 1,
+  );
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error(error.message);
   }
 
   return {
@@ -62,38 +61,80 @@ export async function listResources(
     total: count ?? 0,
     page: safePage,
     pageSize: RESOURCES_PAGE_SIZE,
-  }
+  };
 }
 
 /** Active providers for resource forms and filters. */
 export async function listProvidersForSelect(): Promise<ProviderOption[]> {
-  const supabase = getSupabaseBrowserClient()
+  const supabase = getSupabaseBrowserClient();
 
   const { data, error } = await supabase
     .from("providers")
     .select("id, name")
     .eq("is_active", true)
-    .order("name")
+    .order("name");
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error(error.message);
   }
 
-  return data ?? []
+  return data ?? [];
 }
 
 export async function listCategoriesForSelect(): Promise<CategoryOption[]> {
-  const supabase = getSupabaseBrowserClient()
+  const supabase = getSupabaseBrowserClient();
 
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name")
+    .select("id, title")
     .eq("is_active", true)
-    .order("name")
+    .order("title");
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error(error.message);
   }
 
-  return data ?? []
+  return data ?? [];
+}
+
+/** Resources available to link from a category form. */
+export async function listResourcesForCategorySelect(): Promise<
+  ResourceOption[]
+> {
+  const supabase = getSupabaseBrowserClient();
+
+  const { data, error } = await supabase
+    .from("resources")
+    .select("id, title, providers(name)")
+    .order("title");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((resource) => ({
+    id: resource.id,
+    title: resource.title,
+    providers: resource.providers?.[0] ?? null,
+  }));
+}
+
+/** Resource ids currently linked to a category. */
+export async function listCategoryResourceIds(
+  categoryId: string,
+): Promise<string[]> {
+  if (!categoryId) return [];
+
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("category_resources")
+    .select("resource_id")
+    .eq("category_id", categoryId)
+    .order("sort_order");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((link) => link.resource_id);
 }

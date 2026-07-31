@@ -2,7 +2,6 @@ import * as React from "react"
 import { Upload } from "lucide-react"
 import { toast } from "sonner"
 
-import { PageHeader } from "@/components/dashboard/page-header"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -36,8 +35,6 @@ export function UploadPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Upload" />
-
       <Card className="border-border/60 mx-auto max-w-2xl shadow-sm">
         <CardHeader>
           <CardTitle>New resource</CardTitle>

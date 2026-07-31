@@ -1,5 +1,5 @@
-import * as React from "react"
-import { useNavigate } from "react-router"
+import * as React from "react";
+import { useNavigate } from "react-router";
 import {
   MoreHorizontal,
   Pencil,
@@ -9,16 +9,13 @@ import {
   Search,
   Trash2,
   X,
-} from "lucide-react"
-import { toast } from "sonner"
+} from "lucide-react";
+import { toast } from "sonner";
 
-import {
-  deleteResource,
-  setResourceActive,
-} from "@/lib/resources/actions"
-import { ResourceFormSheet } from "@/components/resources/resource-form-sheet"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { deleteResource, setResourceActive } from "@/lib/resources/actions";
+import { ResourceFormSheet } from "@/components/resources/resource-form-sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -26,15 +23,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -42,14 +39,14 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from "@/components/ui/pagination"
+} from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -57,39 +54,39 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { RESOURCE_TYPE_LABELS } from "@/lib/resources/constants"
+} from "@/components/ui/table";
+import { RESOURCE_TYPE_LABELS } from "@/lib/resources/constants";
 import type {
   CategoryOption,
   ProviderOption,
   ResourceWithRelations,
-} from "@/lib/resources/types"
-import { cn } from "@/lib/utils"
+} from "@/lib/resources/types";
+import { cn } from "@/lib/utils";
 
 type ResourcesManagerProps = {
-  resources: ResourceWithRelations[]
-  providers: ProviderOption[]
-  categories: CategoryOption[]
-  total: number
-  page: number
-  pageSize: number
-  providerId: string | null
-  search: string | null
-  onMutated?: () => void
-}
+  resources: ResourceWithRelations[];
+  providers: ProviderOption[];
+  categories: CategoryOption[];
+  total: number;
+  page: number;
+  pageSize: number;
+  providerId: string | null;
+  search: string | null;
+  onMutated?: () => void;
+};
 
 function pageHref(
   page: number,
   providerId: string | null,
-  search: string | null
+  search: string | null,
 ) {
-  const params = new URLSearchParams()
-  if (page > 1) params.set("page", String(page))
-  if (providerId) params.set("provider", providerId)
-  const q = search?.trim()
-  if (q) params.set("q", q)
-  const qs = params.toString()
-  return qs ? `?${qs}` : "?"
+  const params = new URLSearchParams();
+  if (page > 1) params.set("page", String(page));
+  if (providerId) params.set("provider", providerId);
+  const q = search?.trim();
+  if (q) params.set("q", q);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "?";
 }
 
 export function ResourcesManager({
@@ -103,81 +100,81 @@ export function ResourcesManager({
   search,
   onMutated,
 }: ResourcesManagerProps) {
-  const navigate = useNavigate()
-  const [query, setQuery] = React.useState(search ?? "")
-  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const navigate = useNavigate();
+  const [query, setQuery] = React.useState(search ?? "");
+  const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ResourceWithRelations | null>(
-    null
-  )
+    null,
+  );
   const [deleting, setDeleting] = React.useState<ResourceWithRelations | null>(
-    null
-  )
-  const [busyId, setBusyId] = React.useState<string | null>(null)
+    null,
+  );
+  const [busyId, setBusyId] = React.useState<string | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-
-  React.useEffect(() => {
-    setQuery(search ?? "")
-  }, [search])
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   React.useEffect(() => {
-    const trimmed = query.trim()
-    const current = (search ?? "").trim()
-    if (trimmed === current) return
+    setQuery(search ?? "");
+  }, [search]);
+
+  React.useEffect(() => {
+    const trimmed = query.trim();
+    const current = (search ?? "").trim();
+    if (trimmed === current) return;
 
     const timer = window.setTimeout(() => {
-      navigate(pageHref(1, providerId, trimmed || null))
-    }, 300)
+      navigate(pageHref(1, providerId, trimmed || null));
+    }, 300);
 
-    return () => window.clearTimeout(timer)
-  }, [query, navigate, search, providerId])
+    return () => window.clearTimeout(timer);
+  }, [query, navigate, search, providerId]);
 
   function openCreate() {
-    setEditing(null)
-    setSheetOpen(true)
+    setEditing(null);
+    setSheetOpen(true);
   }
 
   function openEdit(resource: ResourceWithRelations) {
-    setEditing(resource)
-    setSheetOpen(true)
+    setEditing(resource);
+    setSheetOpen(true);
   }
 
   function onProviderFilter(value: string | null) {
-    const next = value === "all" || !value ? null : value
-    navigate(pageHref(1, next, search))
+    const next = value === "all" || !value ? null : value;
+    navigate(pageHref(1, next, search));
   }
 
   function clearSearch() {
-    setQuery("")
-    navigate(pageHref(1, providerId, null))
+    setQuery("");
+    navigate(pageHref(1, providerId, null));
   }
 
   async function toggleActive(resource: ResourceWithRelations) {
-    setBusyId(resource.id)
-    const result = await setResourceActive(resource.id, !resource.is_active)
+    setBusyId(resource.id);
+    const result = await setResourceActive(resource.id, !resource.is_active);
     if (!result.ok) {
-      toast.error("Could not update status", { description: result.error })
+      toast.error("Could not update status", { description: result.error });
     } else {
       toast.success(
-        resource.is_active ? "Resource deactivated" : "Resource activated"
-      )
-      onMutated?.()
+        resource.is_active ? "Resource deactivated" : "Resource activated",
+      );
+      onMutated?.();
     }
-    setBusyId(null)
+    setBusyId(null);
   }
 
   async function confirmDelete() {
-    if (!deleting) return
-    setBusyId(deleting.id)
-    const result = await deleteResource(deleting.id)
+    if (!deleting) return;
+    setBusyId(deleting.id);
+    const result = await deleteResource(deleting.id);
     if (!result.ok) {
-      toast.error("Could not delete resource", { description: result.error })
+      toast.error("Could not delete resource", { description: result.error });
     } else {
-      toast.success("Resource deleted")
-      setDeleting(null)
-      onMutated?.()
+      toast.success("Resource deleted");
+      setDeleting(null);
+      onMutated?.();
     }
-    setBusyId(null)
+    setBusyId(null);
   }
 
   return (
@@ -217,7 +214,7 @@ export function ResourcesManager({
               items={{
                 all: "All providers",
                 ...Object.fromEntries(
-                  providers.map((provider) => [provider.id, provider.name])
+                  providers.map((provider) => [provider.id, provider.name]),
                 ),
               }}
             >
@@ -239,10 +236,10 @@ export function ResourcesManager({
             Create resource
           </Button>
         </div>
-        <Table>
+        <Table className="min-w-208 table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-6">Resource</TableHead>
+              <TableHead className="w-[40%] pr-6 pl-6">Resource</TableHead>
               <TableHead className="w-20">Image</TableHead>
               <TableHead className="hidden md:table-cell">Provider</TableHead>
               <TableHead>Type</TableHead>
@@ -267,42 +264,45 @@ export function ResourcesManager({
               </TableRow>
             ) : (
               resources.map((resource) => {
-                const categoryLinks = resource.category_resources ?? []
+                const categoryLinks = resource.category_resources ?? [];
                 return (
-                  <TableRow key={resource.id} className="hover:bg-muted/40">
-                    <TableCell className="pl-6">
+                  <TableRow
+                    key={resource.id}
+                    className="h-20 hover:bg-muted/40"
+                  >
+                    <TableCell className="py-3 pr-6 pl-6">
                       <button
                         type="button"
                         onClick={() => openEdit(resource)}
-                        className="text-left"
+                        className="flex w-full flex-col gap-1 text-left"
                       >
-                        <span className="block font-medium">
+                        <span className="truncate text-[15px] leading-5 font-semibold">
                           {resource.title}
                         </span>
-                        <span className="text-muted-foreground block text-xs">
-                          {resource.summary ||
-                            resource.carousel_label ||
-                            "—"}
+                        <span className="text-muted-foreground line-clamp-2 min-h-8 text-xs leading-4 whitespace-normal">
+                          {resource.description || "—"}
                         </span>
-                        <span className="text-muted-foreground block text-xs md:hidden">
+                        <span className="text-muted-foreground truncate text-xs md:hidden">
                           {resource.providers?.name ?? "—"}
                         </span>
                       </button>
                     </TableCell>
                     <TableCell>
-                      {resource.image_url ? (
-                        <img
-                          src={resource.image_url}
-                          alt=""
-                          className="size-16 rounded object-cover"
-                        />
-                      ) : (
-                        <span className="bg-muted text-muted-foreground flex size-16 items-center justify-center rounded text-[10px]">
-                          No image
-                        </span>
-                      )}
+                      <div className="bg-muted flex size-16 items-center justify-center overflow-hidden rounded">
+                        {resource.thumbnail ? (
+                          <img
+                            src={resource.thumbnail}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-[10px]">
+                            No image
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">
+                    <TableCell className="text-muted-foreground hidden truncate md:table-cell">
                       {resource.providers?.name ?? "—"}
                     </TableCell>
                     <TableCell>
@@ -323,7 +323,7 @@ export function ResourcesManager({
                               variant="secondary"
                               className="font-normal"
                             >
-                              {link.categories?.name ?? link.category_id}
+                              {link.categories?.title ?? link.category_id}
                             </Badge>
                           ))}
                         </div>
@@ -336,7 +336,7 @@ export function ResourcesManager({
                           "font-medium",
                           resource.is_active
                             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                            : "bg-muted text-muted-foreground"
+                            : "bg-muted text-muted-foreground",
                         )}
                       >
                         {resource.is_active ? "Active" : "Inactive"}
@@ -379,7 +379,7 @@ export function ResourcesManager({
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )
+                );
               })
             )}
           </TableBody>
@@ -417,7 +417,7 @@ export function ResourcesManager({
                       {pageNum}
                     </PaginationLink>
                   </PaginationItem>
-                )
+                ),
               )}
               <PaginationItem>
                 <PaginationNext
@@ -451,15 +451,15 @@ export function ResourcesManager({
       <Dialog
         open={Boolean(deleting)}
         onOpenChange={(open) => {
-          if (!open) setDeleting(null)
+          if (!open) setDeleting(null);
         }}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete “{deleting?.title}”?</DialogTitle>
             <DialogDescription>
-              This permanently removes the resource, its category links, and
-              any thumbnail in storage. Prefer deactivating to hide it instead.
+              This permanently removes the resource, its category links, and any
+              thumbnail in storage. Prefer deactivating to hide it instead.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -477,5 +477,5 @@ export function ResourcesManager({
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

@@ -1,13 +1,15 @@
 import * as React from "react"
-import { ImageIcon, Loader2, Trash2 } from "lucide-react"
+import { ArrowLeft, ImageIcon, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
   clearResourceImage,
+  createResourceCategory,
   createResource,
   syncResourceCategoryLinks,
   updateResource,
   uploadResourceImage,
+  uploadResourceVideo,
 } from "@/lib/resources/actions"
 import { FieldError } from "@/components/field-error"
 import { Button } from "@/components/ui/button"
@@ -31,8 +33,11 @@ import {
 import {
   RESOURCE_IMAGE_MAX_BYTES,
   RESOURCE_IMAGE_MIME_TYPES,
+  RESOURCE_VIDEO_MAX_BYTES,
+  RESOURCE_VIDEO_MIME_TYPES,
   RESOURCE_TYPE_LABELS,
 } from "@/lib/resources/constants"
+import { CATEGORY_ICON_KEYS, slugify } from "@/lib/categories/constants"
 import {
   RESOURCE_TYPES,
   type CategoryOption,
@@ -40,70 +45,85 @@ import {
   type ResourceType,
   type ResourceWithRelations,
 } from "@/lib/resources/types"
-import { cn, isValidHttpUrl } from "@/lib/utils"
+import { isValidHttpUrl } from "@/lib/utils"
 
 const NO_CATEGORY = "__none__"
 
 function categoryIdFromResource(
   resource: ResourceWithRelations | null
 ): string {
-  const links = [...(resource?.category_resources ?? [])].sort(
-    (a, b) => a.sort_order - b.sort_order
+  return (
+    [...(resource?.category_resources ?? [])]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .at(0)?.category_id ?? ""
   )
-  return links[0]?.category_id ?? ""
 }
 
 type FieldErrors = {
   providerId?: string
   title?: string
+  description?: string
   type?: string
-  url?: string
+  websiteUrl?: string
   phone?: string
-  videoId?: string
-  body?: string
+  videoUrl?: string
+  video?: string
   image?: string
+  thumbnailUrl?: string
+  category?: string
+  newCategoryTitle?: string
+  newCategorySlug?: string
+  newCategorySubtitle?: string
+  newCategoryDescription?: string
+  newCategoryIcon?: string
 }
 
 function validateResourceFields(fields: {
   providerId: string
   title: string
+  description: string
   type: ResourceType | null
-  url: string
+  websiteUrl: string
   phone: string
-  videoId: string
-  body: string
+  videoUrl: string
+  hasVideoFile: boolean
+  thumbnailUrl: string
+  hasThumbnail: boolean
 }): FieldErrors {
   const errors: FieldErrors = {}
 
   if (!fields.providerId) errors.providerId = "Provider is required"
   if (!fields.title.trim()) errors.title = "Title is required"
+  if (!fields.description.trim()) {
+    errors.description = "Description is required"
+  }
   if (!fields.type) {
     errors.type = "Type is required"
-    return errors
   }
 
   if (fields.type === "website") {
-    if (!fields.url.trim()) {
-      errors.url = "URL is required"
-    } else if (!isValidHttpUrl(fields.url)) {
-      errors.url = "Enter a valid URL"
+    if (!fields.websiteUrl.trim()) {
+      errors.websiteUrl = "Website URL is required"
+    } else if (!isValidHttpUrl(fields.websiteUrl)) {
+      errors.websiteUrl = "Enter a valid website URL"
     }
   }
   if (fields.type === "hotline" && !fields.phone.trim()) {
     errors.phone = "Phone is required"
   }
-  if (fields.type === "youtube") {
-    if (!fields.url.trim() && !fields.videoId.trim()) {
-      errors.url = "URL or video ID is required"
-      errors.videoId = "URL or video ID is required"
-    } else if (fields.url.trim() && !isValidHttpUrl(fields.url)) {
-      errors.url = "Enter a valid URL"
+  if (fields.type === "video") {
+    if (!fields.videoUrl.trim() && !fields.hasVideoFile) {
+      errors.videoUrl = "Video URL is required"
+    } else if (fields.videoUrl && !isValidHttpUrl(fields.videoUrl)) {
+      errors.videoUrl = "Enter a valid video URL"
     }
   }
-  if (fields.type === "text" && !fields.body.trim()) {
-    errors.body = "Body is required"
+  if (fields.thumbnailUrl && !isValidHttpUrl(fields.thumbnailUrl)) {
+    errors.thumbnailUrl = "Enter a valid image URL"
   }
-
+  if (!fields.hasThumbnail) {
+    errors.thumbnailUrl = "Thumbnail is required"
+  }
   return errors
 }
 
@@ -121,13 +141,28 @@ function validateImageFile(file: File): string | null {
   return null
 }
 
+function validateVideoFile(file: File): string | null {
+  if (
+    !RESOURCE_VIDEO_MIME_TYPES.includes(
+      file.type as (typeof RESOURCE_VIDEO_MIME_TYPES)[number]
+    )
+  ) {
+    return "Video must be MP4, WebM, or QuickTime"
+  }
+  if (file.size > RESOURCE_VIDEO_MAX_BYTES) {
+    return "Video must be 100 MiB or smaller"
+  }
+  return null
+}
+
 type ResourceFormSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSaved?: () => void
+  onSaved?: (resourceId: string) => void
   resource: ResourceWithRelations | null
   providers: ProviderOption[]
   categories: CategoryOption[]
+  modal?: boolean
 }
 
 export function ResourceFormSheet({
@@ -137,23 +172,38 @@ export function ResourceFormSheet({
   resource,
   providers,
   categories,
+  modal = false,
 }: ResourceFormSheetProps) {
   const isEdit = Boolean(resource)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const videoInputRef = React.useRef<HTMLInputElement>(null)
   const [pending, setPending] = React.useState(false)
+  const [step, setStep] = React.useState<1 | 2>(1)
   const [providerId, setProviderId] = React.useState("")
   const [title, setTitle] = React.useState("")
-  const [carouselLabel, setCarouselLabel] = React.useState("")
-  const [summary, setSummary] = React.useState("")
+  const [description, setDescription] = React.useState("")
   const [type, setType] = React.useState<ResourceType | null>(null)
-  const [url, setUrl] = React.useState("")
+  const [websiteUrl, setWebsiteUrl] = React.useState("")
   const [phone, setPhone] = React.useState("")
-  const [videoId, setVideoId] = React.useState("")
-  const [body, setBody] = React.useState("")
+  const [videoUrl, setVideoUrl] = React.useState("")
+  const [videoFile, setVideoFile] = React.useState<File | null>(null)
   const [isActive, setIsActive] = React.useState(false)
   const [categoryId, setCategoryId] = React.useState("")
+  const [categoryMode, setCategoryMode] = React.useState<"existing" | "new">(
+    "existing"
+  )
+  const [newCategoryTitle, setNewCategoryTitle] = React.useState("")
+  const [newCategorySlug, setNewCategorySlug] = React.useState("")
+  const [newCategorySlugTouched, setNewCategorySlugTouched] =
+    React.useState(false)
+  const [newCategorySubtitle, setNewCategorySubtitle] = React.useState("")
+  const [newCategoryDescription, setNewCategoryDescription] =
+    React.useState("")
+  const [newCategoryIconKey, setNewCategoryIconKey] =
+    React.useState<string>("folder")
   const [errors, setErrors] = React.useState<FieldErrors>({})
   const [imageFile, setImageFile] = React.useState<File | null>(null)
+  const [thumbnailUrl, setThumbnailUrl] = React.useState("")
   const [imagePreviewUrl, setImagePreviewUrl] = React.useState<string | null>(
     null
   )
@@ -162,17 +212,25 @@ export function ResourceFormSheet({
   React.useEffect(() => {
     if (!open) return
     setProviderId(resource?.provider_id ?? "")
+    setStep(1)
     setTitle(resource?.title ?? "")
-    setCarouselLabel(resource?.carousel_label ?? "")
-    setSummary(resource?.summary ?? "")
+    setDescription(resource?.description ?? "")
     setType(resource?.type ?? null)
-    setUrl(resource?.url ?? "")
+    setWebsiteUrl(resource?.website_url ?? "")
     setPhone(resource?.phone ?? "")
-    setVideoId(resource?.video_id ?? "")
-    setBody(resource?.body ?? "")
+    setVideoUrl(resource?.video_url ?? "")
+    setVideoFile(null)
     setIsActive(resource?.is_active ?? false)
     setCategoryId(categoryIdFromResource(resource))
+    setCategoryMode("existing")
+    setNewCategoryTitle("")
+    setNewCategorySlug("")
+    setNewCategorySlugTouched(false)
+    setNewCategorySubtitle("")
+    setNewCategoryDescription("")
+    setNewCategoryIconKey("folder")
     setImageFile(null)
+    setThumbnailUrl("")
     setClearExistingImage(false)
     setErrors({})
   }, [open, resource])
@@ -189,7 +247,7 @@ export function ResourceFormSheet({
 
   const displayedImageUrl =
     imagePreviewUrl ??
-    (!clearExistingImage ? (resource?.image_url ?? null) : null)
+    (!clearExistingImage ? (thumbnailUrl || resource?.thumbnail || null) : null)
 
   function clearError(field: keyof FieldErrors) {
     setErrors((prev) => {
@@ -205,15 +263,17 @@ export function ResourceFormSheet({
     const next = value as ResourceType
     setType(next)
     clearError("type")
-    clearError("url")
+    clearError("websiteUrl")
     clearError("phone")
-    clearError("videoId")
-    clearError("body")
+    clearError("videoUrl")
+    clearError("video")
     // Clear payload fields that do not apply to the selected type.
-    if (next !== "website" && next !== "youtube") setUrl("")
+    if (next !== "website") setWebsiteUrl("")
     if (next !== "hotline") setPhone("")
-    if (next !== "youtube") setVideoId("")
-    if (next !== "text") setBody("")
+    if (next !== "video") {
+      setVideoUrl("")
+      setVideoFile(null)
+    }
   }
 
   function onImageChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -228,29 +288,110 @@ export function ResourceFormSheet({
     }
 
     setImageFile(file)
+    setThumbnailUrl("")
     setClearExistingImage(false)
     clearError("image")
   }
 
   function onClearImage() {
     setImageFile(null)
+    setThumbnailUrl("")
     setClearExistingImage(true)
     clearError("image")
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
+  function onVideoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+
+    const videoError = validateVideoFile(file)
+    if (videoError) {
+      setErrors((prev) => ({ ...prev, video: videoError }))
+      return
+    }
+
+    setVideoFile(file)
+    clearError("video")
+    clearError("videoUrl")
+  }
+
+  function onClearVideo() {
+    setVideoFile(null)
+    setVideoUrl("")
+    clearError("video")
+    clearError("videoUrl")
+    if (videoInputRef.current) videoInputRef.current.value = ""
+  }
+
+  function continueToCategories() {
+    const nextErrors = validateResourceFields({
+      providerId,
+      title,
+      description,
+      type,
+      websiteUrl,
+      phone,
+      videoUrl,
+      hasVideoFile: Boolean(videoFile),
+      thumbnailUrl,
+      hasThumbnail: Boolean(
+        imageFile ||
+          thumbnailUrl ||
+          (!clearExistingImage && resource?.thumbnail)
+      ),
+    })
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length === 0) setStep(2)
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (step !== 2) {
+      continueToCategories()
+      return
+    }
 
     const nextErrors = validateResourceFields({
       providerId,
       title,
+      description,
       type,
-      url,
+      websiteUrl,
       phone,
-      videoId,
-      body,
+      videoUrl,
+      hasVideoFile: Boolean(videoFile),
+      thumbnailUrl,
+      hasThumbnail: Boolean(
+        imageFile ||
+          thumbnailUrl ||
+          (!clearExistingImage && resource?.thumbnail)
+      ),
     })
+    if (
+      categoryMode === "new" &&
+      (!newCategoryTitle.trim() ||
+        !newCategorySlug.trim() ||
+        !newCategorySubtitle.trim() ||
+        !newCategoryDescription.trim() ||
+        !newCategoryIconKey)
+    ) {
+      if (!newCategoryTitle.trim()) {
+        nextErrors.newCategoryTitle = "Title is required"
+      }
+      if (!newCategorySlug.trim()) {
+        nextErrors.newCategorySlug = "Slug is required"
+      }
+      if (!newCategorySubtitle.trim()) {
+        nextErrors.newCategorySubtitle = "Subtitle is required"
+      }
+      if (!newCategoryDescription.trim()) {
+        nextErrors.newCategoryDescription = "Description is required"
+      }
+      if (!newCategoryIconKey) {
+        nextErrors.newCategoryIcon = "Icon is required"
+      }
+    }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -259,13 +400,19 @@ export function ResourceFormSheet({
     const formData = new FormData()
     formData.set("provider_id", providerId)
     formData.set("title", title)
-    formData.set("carousel_label", carouselLabel)
-    formData.set("summary", summary)
+    formData.set("description", description)
     formData.set("type", type!)
-    formData.set("url", url)
+    formData.set("website_url", websiteUrl)
     formData.set("phone", phone)
-    formData.set("video_id", videoId)
-    formData.set("body", body)
+    formData.set("video_url", videoUrl)
+    formData.set("thumbnail_url", thumbnailUrl)
+    formData.set("has_video_upload", videoFile ? "true" : "false")
+    formData.set(
+      "has_thumbnail",
+      imageFile || thumbnailUrl || (!clearExistingImage && resource?.thumbnail)
+        ? "true"
+        : "false"
+    )
     formData.set("is_active", isActive ? "true" : "false")
 
     const result = isEdit
@@ -297,7 +444,7 @@ export function ResourceFormSheet({
         setPending(false)
         return
       }
-    } else if (isEdit && clearExistingImage && resource?.image_url) {
+    } else if (isEdit && clearExistingImage && resource?.thumbnail) {
       const clearResult = await clearResourceImage(resourceId)
       if (!clearResult.ok) {
         toast.error("Resource saved, but could not clear thumbnail", {
@@ -308,9 +455,44 @@ export function ResourceFormSheet({
       }
     }
 
+    if (videoFile) {
+      const uploadResult = await uploadResourceVideo(resourceId, videoFile)
+      if (!uploadResult.ok) {
+        toast.error("Resource saved, but video upload failed", {
+          description: uploadResult.error,
+        })
+        setPending(false)
+        return
+      }
+    }
+
+    let linkCategoryIds = categoryId ? [categoryId] : []
+    if (newCategoryTitle.trim()) {
+      const categoryResult = await createResourceCategory({
+        title: newCategoryTitle,
+        slug: newCategorySlug,
+        subtitle: newCategorySubtitle,
+        description: newCategoryDescription,
+        icon_key: newCategoryIconKey,
+      })
+      if (!categoryResult.ok || !categoryResult.id) {
+        toast.error("Resource saved, but category creation failed", {
+          description: categoryResult.ok
+            ? "The new category did not return an id."
+            : categoryResult.error,
+        })
+        setPending(false)
+        return
+      }
+      linkCategoryIds = [...linkCategoryIds, categoryResult.id]
+    }
+
     const linksResult = await syncResourceCategoryLinks(
       resourceId,
-      categoryId ? [{ category_id: categoryId, sort_order: 0 }] : []
+      linkCategoryIds.map((category_id, sort_order) => ({
+        category_id,
+        sort_order,
+      }))
     )
     if (!linksResult.ok) {
       toast.error("Resource saved, but category links failed", {
@@ -322,14 +504,9 @@ export function ResourceFormSheet({
 
     toast.success(isEdit ? "Resource updated" : "Resource created")
     setPending(false)
-    onSaved?.()
+    onSaved?.(resourceId)
     onOpenChange(false)
   }
-
-  const textareaClassName = cn(
-    "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:ring-3 md:text-sm dark:bg-input/30",
-    "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
-  )
 
   const canSubmit = !pending && providers.length > 0 && Boolean(providerId)
 
@@ -337,12 +514,43 @@ export function ResourceFormSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-lg lg:max-w-xl xl:max-w-2xl data-[side=right]:sm:max-w-lg data-[side=right]:lg:max-w-xl data-[side=right]:xl:max-w-2xl"
+        className={
+          modal
+            ? "top-1/2! left-1/2! right-auto! h-[min(90vh,56rem)]! w-[calc(100%-2rem)]! max-w-3xl! -translate-x-1/2! -translate-y-1/2! rounded-xl border ring-1 ring-foreground/10 data-[side=right]:data-ending-style:translate-x-0 data-[side=right]:data-starting-style:translate-x-0"
+            : "w-full sm:max-w-lg lg:max-w-xl xl:max-w-2xl data-[side=right]:sm:max-w-lg data-[side=right]:lg:max-w-xl data-[side=right]:xl:max-w-2xl"
+        }
       >
-        <SheetHeader>
-          <SheetTitle>
-            {isEdit ? "Edit resource" : "Create resource"}
-          </SheetTitle>
+        <SheetHeader className="flex-row items-center justify-between space-y-0 pr-10">
+          <div className="flex items-center gap-2">
+            {step === 2 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={() => setStep(1)}
+                disabled={pending}
+                aria-label="Back to resource details"
+                title="Back to resource details"
+              >
+                <ArrowLeft />
+              </Button>
+            ) : null}
+            <SheetTitle>
+              {isEdit ? "Edit resource" : "Create resource"}
+            </SheetTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-xs">
+              Step {step} / 2
+            </span>
+            <div className="bg-muted h-1 w-12 overflow-hidden rounded-full">
+              <div
+                className={`h-full rounded-full bg-primary transition-all ${
+                  step === 1 ? "w-1/2" : "w-full"
+                }`}
+              />
+            </div>
+          </div>
         </SheetHeader>
 
         <form
@@ -350,7 +558,9 @@ export function ResourceFormSheet({
           onSubmit={onSubmit}
           className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"
         >
-          <div className="space-y-2">
+          {step === 1 ? (
+            <>
+          <div className="order-1 space-y-2">
             <Label>Provider</Label>
             <Select
               value={providerId || null}
@@ -370,7 +580,13 @@ export function ResourceFormSheet({
               >
                 <SelectValue placeholder="Select a provider" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                side="bottom"
+                align="start"
+                alignItemWithTrigger={false}
+                collisionAvoidance={{ side: "none", fallbackAxisSide: "none" }}
+                className="max-h-56"
+              >
                 {providers.map((provider) => (
                   <SelectItem key={provider.id} value={provider.id}>
                     {provider.name}
@@ -386,94 +602,7 @@ export function ResourceFormSheet({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="resource-title">Title</Label>
-            <Input
-              id="resource-title"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value)
-                clearError("title")
-              }}
-              placeholder="CareerOneStop Job Search"
-              aria-invalid={Boolean(errors.title) || undefined}
-              className="h-9"
-            />
-            <FieldError message={errors.title} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="resource-image">Thumbnail</Label>
-            <div className="flex items-center gap-4">
-              <div className="bg-muted/40 flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 sm:size-32">
-                {displayedImageUrl ? (
-                  <img
-                    src={displayedImageUrl}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <ImageIcon className="text-muted-foreground size-8" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1 space-y-2">
-                <Input
-                  ref={fileInputRef}
-                  id="resource-image"
-                  type="file"
-                  accept={RESOURCE_IMAGE_MIME_TYPES.join(",")}
-                  onChange={onImageChange}
-                  aria-invalid={Boolean(errors.image) || undefined}
-                  className="h-9 cursor-pointer file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  {displayedImageUrl ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={onClearImage}
-                      disabled={pending}
-                    >
-                      <Trash2 />
-                      Clear thumbnail
-                    </Button>
-                  ) : null}
-                  <p className="text-muted-foreground text-xs">
-                    JPEG, PNG, or WebP · max 2 MiB. Stored in resource-images.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <FieldError message={errors.image} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="resource-carousel-label">Carousel label</Label>
-            <Input
-              id="resource-carousel-label"
-              value={carouselLabel}
-              onChange={(e) => setCarouselLabel(e.target.value)}
-              placeholder="Career OneStop"
-              className="h-9"
-            />
-            <p className="text-muted-foreground text-xs">
-              Short label for carousels; falls back to title.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="resource-summary">Summary</Label>
-            <Input
-              id="resource-summary"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="Explore careers, find training, and search for jobs."
-              className="h-9"
-            />
-          </div>
-
-          <div className="space-y-2">
+          <div className="order-2 space-y-2">
             <Label>Type</Label>
             <Select
               value={type}
@@ -503,80 +632,196 @@ export function ResourceFormSheet({
             <FieldError message={errors.type} />
           </div>
 
+          <div className="order-4 space-y-2">
+            <Label htmlFor="resource-title">Title</Label>
+            <Input
+              id="resource-title"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value)
+                clearError("title")
+              }}
+              placeholder="CareerOneStop Job Search"
+              aria-invalid={Boolean(errors.title) || undefined}
+              className="h-9"
+            />
+            <FieldError message={errors.title} />
+          </div>
+
+          <div className="order-5 space-y-2">
+            <Label htmlFor="resource-description">Description</Label>
+            <textarea
+              id="resource-description"
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                clearError("description")
+              }}
+              placeholder="Explore careers, find training, and search for jobs."
+              rows={4}
+              aria-invalid={Boolean(errors.description) || undefined}
+              className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full resize-y rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:ring-3 dark:bg-input/30"
+            />
+            <FieldError message={errors.description} />
+          </div>
+
+          <div className="order-6 space-y-2">
+            <Label htmlFor="resource-image">Thumbnail</Label>
+            <div className="flex items-center gap-4">
+              <div className="bg-muted/40 flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 sm:size-32">
+                {displayedImageUrl ? (
+                  <img
+                    src={displayedImageUrl}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <ImageIcon className="text-muted-foreground size-8" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <Input
+                  ref={fileInputRef}
+                  id="resource-image"
+                  type="file"
+                  accept={RESOURCE_IMAGE_MIME_TYPES.join(",")}
+                  onChange={onImageChange}
+                  aria-invalid={Boolean(errors.image) || undefined}
+                  className="h-9 cursor-pointer file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+                />
+                <Input
+                  id="resource-thumbnail-url"
+                  type="url"
+                  value={thumbnailUrl}
+                  onChange={(event) => {
+                    setThumbnailUrl(event.target.value)
+                    setImageFile(null)
+                    setClearExistingImage(false)
+                    clearError("thumbnailUrl")
+                  }}
+                  placeholder="Or paste an image URL"
+                  aria-invalid={Boolean(errors.thumbnailUrl) || undefined}
+                  className="h-9"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {displayedImageUrl ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onClearImage}
+                      disabled={pending}
+                    >
+                      <Trash2 />
+                      Clear thumbnail
+                    </Button>
+                  ) : null}
+                  <p className="text-muted-foreground text-xs">
+                    Upload a JPEG, PNG, or WebP (max 2 MiB), or paste an image URL.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <FieldError message={errors.thumbnailUrl ?? errors.image} />
+          </div>
+
           {type === "website" ? (
-            <div className="space-y-2">
-              <Label htmlFor="resource-url">URL</Label>
+            <div className="order-3 space-y-2">
+              <Label htmlFor="resource-website-url">Website URL</Label>
               <Input
-                id="resource-url"
+                id="resource-website-url"
                 type="url"
-                value={url}
+                value={websiteUrl}
                 onChange={(e) => {
-                  setUrl(e.target.value)
-                  clearError("url")
+                  setWebsiteUrl(e.target.value)
+                  clearError("websiteUrl")
+                }}
+                onBlur={() => {
+                  if (websiteUrl.trim() && !isValidHttpUrl(websiteUrl)) {
+                    setErrors((current) => ({
+                      ...current,
+                      websiteUrl: "Enter a valid website URL",
+                    }))
+                  }
                 }}
                 placeholder="https://…"
-                aria-invalid={Boolean(errors.url) || undefined}
+                aria-invalid={Boolean(errors.websiteUrl) || undefined}
                 className="h-9"
               />
-              <FieldError message={errors.url} />
+              <FieldError message={errors.websiteUrl} />
             </div>
           ) : null}
 
-          {type === "youtube" ? (
-            <>
+          {type === "video" ? (
+            <div className="order-3 space-y-2">
+              <Label htmlFor="resource-video-file">Video URL or upload</Label>
               <div className="space-y-2">
-                <Label htmlFor="resource-url">URL</Label>
-                <Input
-                  id="resource-url"
-                  type="url"
-                  value={url}
-                  onChange={(e) => {
-                    setUrl(e.target.value)
-                    clearError("url")
-                    clearError("videoId")
-                  }}
-                  placeholder="https://www.youtube.com/watch?v=…"
-                  aria-invalid={Boolean(errors.url) || undefined}
-                  className="h-9"
-                />
-                <FieldError message={errors.url} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="resource-video-id">Video ID</Label>
-                <Input
-                  id="resource-video-id"
-                  value={videoId}
-                  onChange={(e) => {
-                    setVideoId(e.target.value)
-                    clearError("videoId")
-                    clearError("url")
-                  }}
-                  placeholder="dQw4w9WgXcQ"
-                  aria-invalid={Boolean(errors.videoId) || undefined}
-                  className="h-9 font-mono text-xs"
-                />
-                <FieldError message={errors.videoId} />
-                {!errors.videoId ? (
+                  <Input
+                    ref={videoInputRef}
+                    id="resource-video-file"
+                    type="file"
+                    accept={RESOURCE_VIDEO_MIME_TYPES.join(",")}
+                    onChange={onVideoChange}
+                    disabled={Boolean(videoUrl)}
+                    aria-invalid={Boolean(errors.video) || undefined}
+                    className="h-9 cursor-pointer file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+                  />
+                  <FieldError message={errors.video} />
+                  <Input
+                    id="resource-video-url"
+                    type="url"
+                    value={videoUrl}
+                    onChange={(e) => {
+                      setVideoUrl(e.target.value)
+                      clearError("videoUrl")
+                    }}
+                    onBlur={() => {
+                      if (videoUrl.trim() && !isValidHttpUrl(videoUrl)) {
+                        setErrors((current) => ({
+                          ...current,
+                          videoUrl: "Enter a valid video URL",
+                        }))
+                      }
+                    }}
+                    disabled={Boolean(videoFile)}
+                    placeholder="Or paste a video URL"
+                    aria-invalid={Boolean(errors.videoUrl) || undefined}
+                    className="h-9"
+                  />
+                  <FieldError message={errors.videoUrl} />
                   <p className="text-muted-foreground text-xs">
-                    Provide a YouTube URL or video ID (at least one required).
+                    Upload an MP4, WebM, or QuickTime (max 100 MiB), or paste
+                    a public video URL.
                   </p>
-                ) : null}
+                  {videoFile || videoUrl ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onClearVideo}
+                      disabled={pending}
+                    >
+                      Clear video
+                    </Button>
+                  ) : null}
               </div>
-            </>
+            </div>
           ) : null}
 
           {type === "hotline" ? (
-            <div className="space-y-2">
+            <div className="order-3 space-y-2">
               <Label htmlFor="resource-phone">Phone</Label>
               <Input
                 id="resource-phone"
-                type="tel"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={phone}
                 onChange={(e) => {
-                  setPhone(e.target.value)
+                  setPhone(e.target.value.replace(/\D/g, ""))
                   clearError("phone")
                 }}
-                placeholder="1-800-555-0100"
+                placeholder="18005550100"
                 aria-invalid={Boolean(errors.phone) || undefined}
                 className="h-9"
               />
@@ -584,26 +829,7 @@ export function ResourceFormSheet({
             </div>
           ) : null}
 
-          {type === "text" ? (
-            <div className="space-y-2">
-              <Label htmlFor="resource-body">Body</Label>
-              <textarea
-                id="resource-body"
-                value={body}
-                onChange={(e) => {
-                  setBody(e.target.value)
-                  clearError("body")
-                }}
-                placeholder="Guidance or informational copy…"
-                rows={5}
-                aria-invalid={Boolean(errors.body) || undefined}
-                className={textareaClassName}
-              />
-              <FieldError message={errors.body} />
-            </div>
-          ) : null}
-
-          <div className="flex items-center gap-2">
+          <div className="order-7 flex items-center gap-2">
             <Checkbox
               checked={isActive}
               onCheckedChange={(checked) => setIsActive(checked)}
@@ -613,44 +839,202 @@ export function ResourceFormSheet({
             <span className="text-sm">Active</span>
           </div>
 
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select
-              value={categoryId || NO_CATEGORY}
-              onValueChange={(value) => {
-                if (!value || value === NO_CATEGORY) {
-                  setCategoryId("")
-                  return
-                }
-                setCategoryId(value)
-              }}
-              items={{
-                [NO_CATEGORY]: "No category",
-                ...Object.fromEntries(
-                  categories.map((category) => [category.id, category.name])
-                ),
-              }}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_CATEGORY}>No category</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {categories.length === 0 ? (
-              <p className="text-muted-foreground text-xs">
-                No active categories yet.
-              </p>
-            ) : null}
-          </div>
+            </>
+          ) : null}
 
-          <SheetFooter className="mt-auto px-0">
+          {step === 2 ? (
+          <section className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+            <div>
+              <h3 className="text-sm font-semibold">
+                Link this resource to a category
+              </h3>
+              <p className="text-muted-foreground text-xs">
+                Optional — you can save now and link a category later.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={categoryMode === "existing" ? "default" : "outline"}
+                onClick={() => {
+                  setCategoryMode("existing")
+                  setNewCategoryTitle("")
+                }}
+              >
+                Choose existing
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={categoryMode === "new" ? "default" : "outline"}
+                onClick={() => {
+                  setCategoryMode("new")
+                  setCategoryId("")
+                }}
+              >
+                Create new
+              </Button>
+            </div>
+
+            {categoryMode === "existing" ? (
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={categoryId || NO_CATEGORY}
+                  onValueChange={(value) => {
+                    setCategoryId(
+                      !value || value === NO_CATEGORY ? "" : value
+                    )
+                  }}
+                  items={{
+                    [NO_CATEGORY]: "No category",
+                    ...Object.fromEntries(
+                      categories.map((category) => [category.id, category.title])
+                    ),
+                  }}
+                >
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent
+                    side="bottom"
+                    align="start"
+                    alignItemWithTrigger={false}
+                    collisionAvoidance={{ side: "none", fallbackAxisSide: "none" }}
+                    className="max-h-56"
+                  >
+                    <SelectItem value={NO_CATEGORY}>No category</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {categories.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    No active categories yet. Create one to continue.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="resource-new-category">Title</Label>
+                  <Input
+                    id="resource-new-category"
+                    value={newCategoryTitle}
+                    onChange={(event) => {
+                      const title = event.target.value
+                      setNewCategoryTitle(title)
+                      clearError("newCategoryTitle")
+                      if (!newCategorySlugTouched) {
+                        setNewCategorySlug(slugify(title))
+                        clearError("newCategorySlug")
+                      }
+                    }}
+                    placeholder="e.g. Career support"
+                    aria-invalid={Boolean(errors.newCategoryTitle) || undefined}
+                    className="h-9"
+                  />
+                  <FieldError message={errors.newCategoryTitle} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="resource-new-category-slug">Slug</Label>
+                  <Input
+                    id="resource-new-category-slug"
+                    value={newCategorySlug}
+                    onChange={(event) => {
+                      setNewCategorySlugTouched(true)
+                      setNewCategorySlug(slugify(event.target.value))
+                      clearError("newCategorySlug")
+                    }}
+                    placeholder="career_support"
+                    aria-invalid={Boolean(errors.newCategorySlug) || undefined}
+                    className="h-9 font-mono text-xs"
+                  />
+                  <FieldError message={errors.newCategorySlug} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="resource-new-category-subtitle">Subtitle</Label>
+                  <Input
+                    id="resource-new-category-subtitle"
+                    value={newCategorySubtitle}
+                    onChange={(event) => {
+                      setNewCategorySubtitle(event.target.value)
+                      clearError("newCategorySubtitle")
+                    }}
+                    placeholder="A short supporting line"
+                    aria-invalid={Boolean(errors.newCategorySubtitle) || undefined}
+                    className="h-9"
+                  />
+                  <FieldError message={errors.newCategorySubtitle} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="resource-new-category-description">
+                    Description
+                  </Label>
+                  <textarea
+                    id="resource-new-category-description"
+                    value={newCategoryDescription}
+                    onChange={(event) => {
+                      setNewCategoryDescription(event.target.value)
+                      clearError("newCategoryDescription")
+                    }}
+                    placeholder="Why this category is important…"
+                    rows={3}
+                    aria-invalid={
+                      Boolean(errors.newCategoryDescription) || undefined
+                    }
+                    className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 w-full resize-y rounded-lg border bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:ring-3 dark:bg-input/30"
+                  />
+                  <FieldError message={errors.newCategoryDescription} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Icon</Label>
+                  <Select
+                    value={newCategoryIconKey}
+                    onValueChange={(value) => {
+                      if (value) {
+                        setNewCategoryIconKey(value)
+                        clearError("newCategoryIcon")
+                      }
+                    }}
+                    items={Object.fromEntries(
+                      CATEGORY_ICON_KEYS.map((key) => [key, key])
+                    )}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue placeholder="Select an icon" />
+                    </SelectTrigger>
+                    <SelectContent
+                      side="bottom"
+                      align="start"
+                      alignItemWithTrigger={false}
+                      collisionAvoidance={{ side: "none", fallbackAxisSide: "none" }}
+                      className="max-h-56"
+                    >
+                      {CATEGORY_ICON_KEYS.map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {key}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError message={errors.newCategoryIcon} />
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  The category will be created and linked when you submit.
+                </p>
+              </div>
+            )}
+            <FieldError message={errors.category} />
+          </section>
+          ) : null}
+
+          <SheetFooter className="order-10 mt-auto px-0">
             <Button
               type="button"
               variant="outline"
@@ -659,18 +1043,30 @@ export function ResourceFormSheet({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSubmit}>
-              {pending ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Saving…
-                </>
-              ) : isEdit ? (
-                "Save changes"
-              ) : (
-                "Create resource"
-              )}
-            </Button>
+            {step === 1 ? (
+              <Button
+                type="button"
+                onClick={continueToCategories}
+                disabled={!canSubmit}
+              >
+                Continue to category
+              </Button>
+            ) : (
+              <>
+                <Button type="submit" disabled={!canSubmit}>
+                  {pending ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      Saving…
+                    </>
+                  ) : isEdit ? (
+                    "Save changes"
+                  ) : (
+                    "Create resource"
+                  )}
+                </Button>
+              </>
+            )}
           </SheetFooter>
         </form>
       </SheetContent>

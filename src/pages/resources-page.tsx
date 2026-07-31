@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import { PageHeader } from "@/components/dashboard/page-header";
 import { ResourcesPageSkeleton } from "@/components/dashboard/page-loading";
 import { ResourcesManager } from "@/components/resources/resources-manager";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -62,8 +61,6 @@ export function ResourcesPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Resources" />
-
       {error ? (
         <div
           role="alert"

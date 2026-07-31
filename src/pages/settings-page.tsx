@@ -3,7 +3,6 @@ import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
 
-import { PageHeader } from "@/components/dashboard/page-header"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -42,8 +41,6 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Settings" />
-
       <div className="mx-auto grid max-w-3xl gap-6">
         <Card className="border-border/60 shadow-sm">
           <CardHeader>

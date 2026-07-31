@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "react-router"
 
 import { DirectoriesManager } from "@/components/directories/directories-manager"
-import { PageHeader } from "@/components/dashboard/page-header"
 import { DirectoriesPageSkeleton } from "@/components/dashboard/page-loading"
 import { useDocumentTitle } from "@/hooks/use-document-title"
 import { listDirectories } from "@/lib/directories/queries"
@@ -52,8 +51,6 @@ export function DirectoriesPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Directories" />
-
       {error ? (
         <div
           role="alert"

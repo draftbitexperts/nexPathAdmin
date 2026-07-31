@@ -20,7 +20,7 @@ export function DashboardLayout() {
       <AppSidebar />
       <SidebarInset className="overflow-hidden">
         <DashboardHeader userEmail={user?.email} userName={userName} />
-        <div className="flex-1 overflow-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-auto">
           <Outlet />
         </div>
       </SidebarInset>

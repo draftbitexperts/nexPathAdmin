@@ -1,7 +1,6 @@
 import { FolderOpen } from "lucide-react"
 import { Link } from "react-router"
 
-import { PageHeader } from "@/components/dashboard/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -39,15 +38,12 @@ export function LibraryPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title="Library"
-        actions={
-          <Button nativeButton={false} render={<Link to="/dashboard/resources" />}>
-            <FolderOpen />
-            Browse resources
-          </Button>
-        }
-      />
+      <div className="flex justify-end">
+        <Button nativeButton={false} render={<Link to="/dashboard/resources" />}>
+          <FolderOpen />
+          Browse resources
+        </Button>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-border/60 shadow-sm">

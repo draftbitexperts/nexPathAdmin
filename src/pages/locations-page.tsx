@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import { PageHeader } from "@/components/dashboard/page-header";
 import { LocationsPageSkeleton } from "@/components/dashboard/page-loading";
 import { LocationsManager } from "@/components/locations/locations-manager";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -123,8 +122,6 @@ export function LocationsPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Locations" />
-
       {error ? (
         <div
           role="alert"

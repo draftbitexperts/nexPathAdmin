@@ -1,6 +1,5 @@
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts"
 import { LatestResourcesTable } from "@/components/dashboard/latest-resources-table"
-import { PageHeader } from "@/components/dashboard/page-header"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { StatsCards } from "@/components/dashboard/stats-cards"
@@ -11,8 +10,6 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Dashboard" />
-
       <StatsCards />
 
       <QuickActions />

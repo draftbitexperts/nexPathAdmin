@@ -345,6 +345,11 @@
   resolved "https://registry.yarnpkg.com/@dotenvx/primitives/-/primitives-0.8.0.tgz#25f3af8f876717deb00b21c64df8a7ba05d16b2c"
   integrity sha512-VYJy0uhFm9zTJ1TxBaW/pA8bjbOM/OttaNMwZ1RHG4JKyRG7DhSdiqD1ipQoAyoD22olUtxbP78W9xY3Wd11bg==
 
+"@draftbit/babel-plugin-inject-jsx-source@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@draftbit/babel-plugin-inject-jsx-source/-/babel-plugin-inject-jsx-source-0.1.0.tgz#413d311b4e99319cc08c211ff2013aa345954512"
+  integrity sha512-Wkuzw/b9MEkdsvCyrtb/zY0Du745fv9tN1xho6Etx0vtlNtN2q4eLGHYeWZXgzvAxRSLa5H3REAC54gNCttCrw==
+
 "@emnapi/core@^1.11.1":
   version "1.11.2"
   resolved "https://registry.yarnpkg.com/@emnapi/core/-/core-1.11.2.tgz#fab0a0f3c492d11f5a9ac9065d0d73955ee1c1c9"
@@ -3963,6 +3968,11 @@ vite-node@^3.2.2:
     es-module-lexer "^1.7.0"
     pathe "^2.0.3"
     vite "^5.0.0 || ^6.0.0 || ^7.0.0-0"
+
+vite-plugin-sitemap@^0.8.2:
+  version "0.8.2"
+  resolved "https://registry.yarnpkg.com/vite-plugin-sitemap/-/vite-plugin-sitemap-0.8.2.tgz#4121168d331df1054bc4b2cff9de8f21cc0bd7af"
+  integrity sha512-bqIw6NVOXg6je81lzX8Lm0vjf8/QSAp8di8fYQzZ3ZdVicOm8+6idBGALJiy1R1FiXNIK8rgORO6HBqXyHW+iQ==
 
 "vite@^5.0.0 || ^6.0.0 || ^7.0.0-0", vite@^7.1.5:
   version "7.3.6"

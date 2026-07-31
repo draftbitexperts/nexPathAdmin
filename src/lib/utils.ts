@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 /**
@@ -11,24 +11,27 @@ export function cn(...inputs: ClassValue[]) {
  * Returns null for empty input.
  */
 export function normalizeHttpUrl(value: string): string | null {
-  const trimmed = value.trim()
-  if (!trimmed) return null
+  const trimmed = value.trim();
+  if (!trimmed) return null;
 
   const candidate = /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed)
     ? trimmed
-    : `https://${trimmed}`
+    : `https://${trimmed}`;
 
   try {
-    const url = new URL(candidate)
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null
-    if (!url.hostname) return null
-    return url.href
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (!url.hostname) return null;
+    const hostname = url.hostname.toLowerCase();
+    const isLocalhost = hostname === "localhost" || hostname.startsWith("[");
+    if (!isLocalhost && !hostname.includes(".")) return null;
+    return url.href;
   } catch {
-    return null
+    return null;
   }
 }
 
 /** True when `value` is a parseable http(s) URL (scheme optional). */
 export function isValidHttpUrl(value: string): boolean {
-  return normalizeHttpUrl(value) !== null
+  return normalizeHttpUrl(value) !== null;
 }

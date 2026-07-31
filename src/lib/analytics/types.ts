@@ -1,61 +1,38 @@
-export const ANALYTICS_TABS = ["events", "users"] as const
+export const EVENT_KINDS = ["all", "views", "actions"] as const;
 
-export type AnalyticsTab = (typeof ANALYTICS_TABS)[number]
+export type EventKind = (typeof EVENT_KINDS)[number];
 
-export const EVENT_KINDS = ["all", "views", "actions"] as const
+export const ANALYTICS_DATE_RANGES = ["all", "today", "week", "month"] as const;
 
-export type EventKind = (typeof EVENT_KINDS)[number]
+export type AnalyticsDateRange = (typeof ANALYTICS_DATE_RANGES)[number];
+
+export type AnalyticsEventTarget = {
+  id?: string;
+  slug?: string | null;
+  name?: string | null;
+  title?: string | null;
+  short_description?: string | null;
+  [key: string]: unknown;
+};
 
 export type AnalyticsEventProperties = {
-  screen?: string
-  target_type?: string
-  target_id?: string
-  [key: string]: unknown
-}
-
-export type AnalyticsEventProfile = {
-  state_code: string | null
-  area_id: string | null
-  onboarding_completed_at: string | null
-}
+  screen?: string;
+  target_type?: string;
+  target_id?: string;
+  target?: AnalyticsEventTarget | null;
+  [key: string]: unknown;
+};
 
 export type AnalyticsEvent = {
-  id: string
-  occurred_at: string
-  event_name: string
-  properties: AnalyticsEventProperties | null
-  user_id: string
-  profiles: AnalyticsEventProfile | AnalyticsEventProfile[] | null
-}
+  id: string;
+  occurred_at: string;
+  event_name: string;
+  properties: AnalyticsEventProperties | null;
+};
 
 export type AnalyticsEventFilters = {
-  eventName?: string | null
-  screen?: string | null
-  kind?: EventKind
-  from?: string | null
-  to?: string | null
-  userId?: string | null
-}
-
-export type UserDevice = {
-  id: string
-  platform: string | null
-  model: string | null
-  os_version: string | null
-  app_version: string | null
-  last_seen_at: string | null
-}
-
-export type UserProfileSummary = {
-  id: string
-  state_code: string | null
-  area_id: string | null
-  onboarding_completed_at: string | null
-}
-
-export type TimelineEvent = {
-  id: string
-  occurred_at: string
-  event_name: string
-  properties: AnalyticsEventProperties | null
-}
+  eventName?: string | null;
+  screen?: string | null;
+  kind?: EventKind;
+  dateRange?: AnalyticsDateRange;
+};

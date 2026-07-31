@@ -1,5 +1,5 @@
-import * as React from "react"
-import { useNavigate } from "react-router"
+import * as React from "react";
+import { useNavigate } from "react-router";
 import {
   MoreHorizontal,
   Pencil,
@@ -9,16 +9,13 @@ import {
   Search,
   Trash2,
   X,
-} from "lucide-react"
-import { toast } from "sonner"
+} from "lucide-react";
+import { toast } from "sonner";
 
-import {
-  deleteCategory,
-  setCategoryActive,
-} from "@/lib/categories/actions"
-import { CategoryFormSheet } from "@/components/categories/category-form-sheet"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { deleteCategory, setCategoryActive } from "@/lib/categories/actions";
+import { CategoryFormSheet } from "@/components/categories/category-form-sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -26,15 +23,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -42,7 +39,7 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from "@/components/ui/pagination"
+} from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -50,27 +47,30 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { categoryIcon } from "@/lib/categories/icons"
-import type { Category } from "@/lib/categories/types"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/table";
+import { categoryIcon } from "@/lib/categories/icons";
+import type { Category } from "@/lib/categories/types";
+import type { ProviderOption, ResourceOption } from "@/lib/resources/types";
+import { cn } from "@/lib/utils";
 
 type CategoriesManagerProps = {
-  categories: Category[]
-  total: number
-  page: number
-  pageSize: number
-  search: string | null
-  onMutated?: () => void
-}
+  categories: Category[];
+  total: number;
+  page: number;
+  pageSize: number;
+  search: string | null;
+  resources: ResourceOption[];
+  providers: ProviderOption[];
+  onMutated?: () => void;
+};
 
 function pageHref(page: number, search: string | null) {
-  const params = new URLSearchParams()
-  if (page > 1) params.set("page", String(page))
-  const q = search?.trim()
-  if (q) params.set("q", q)
-  const qs = params.toString()
-  return qs ? `?${qs}` : "?"
+  const params = new URLSearchParams();
+  if (page > 1) params.set("page", String(page));
+  const q = search?.trim();
+  if (q) params.set("q", q);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "?";
 }
 
 export function CategoriesManager({
@@ -79,74 +79,76 @@ export function CategoriesManager({
   page,
   pageSize,
   search,
+  resources,
+  providers,
   onMutated,
 }: CategoriesManagerProps) {
-  const navigate = useNavigate()
-  const [query, setQuery] = React.useState(search ?? "")
-  const [sheetOpen, setSheetOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<Category | null>(null)
-  const [deleting, setDeleting] = React.useState<Category | null>(null)
-  const [busyId, setBusyId] = React.useState<string | null>(null)
+  const navigate = useNavigate();
+  const [query, setQuery] = React.useState(search ?? "");
+  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Category | null>(null);
+  const [deleting, setDeleting] = React.useState<Category | null>(null);
+  const [busyId, setBusyId] = React.useState<string | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-
-  React.useEffect(() => {
-    setQuery(search ?? "")
-  }, [search])
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   React.useEffect(() => {
-    const trimmed = query.trim()
-    const current = (search ?? "").trim()
-    if (trimmed === current) return
+    setQuery(search ?? "");
+  }, [search]);
+
+  React.useEffect(() => {
+    const trimmed = query.trim();
+    const current = (search ?? "").trim();
+    if (trimmed === current) return;
 
     const timer = window.setTimeout(() => {
-      navigate(pageHref(1, trimmed || null))
-    }, 300)
+      navigate(pageHref(1, trimmed || null));
+    }, 300);
 
-    return () => window.clearTimeout(timer)
-  }, [query, navigate, search])
+    return () => window.clearTimeout(timer);
+  }, [query, navigate, search]);
 
   function openCreate() {
-    setEditing(null)
-    setSheetOpen(true)
+    setEditing(null);
+    setSheetOpen(true);
   }
 
   function openEdit(category: Category) {
-    setEditing(category)
-    setSheetOpen(true)
+    setEditing(category);
+    setSheetOpen(true);
   }
 
   function clearSearch() {
-    setQuery("")
-    navigate(pageHref(1, null))
+    setQuery("");
+    navigate(pageHref(1, null));
   }
 
   async function toggleActive(category: Category) {
-    setBusyId(category.id)
-    const result = await setCategoryActive(category.id, !category.is_active)
+    setBusyId(category.id);
+    const result = await setCategoryActive(category.id, !category.is_active);
     if (!result.ok) {
-      toast.error("Could not update status", { description: result.error })
+      toast.error("Could not update status", { description: result.error });
     } else {
       toast.success(
-        category.is_active ? "Category deactivated" : "Category activated"
-      )
-      onMutated?.()
+        category.is_active ? "Category deactivated" : "Category activated",
+      );
+      onMutated?.();
     }
-    setBusyId(null)
+    setBusyId(null);
   }
 
   async function confirmDelete() {
-    if (!deleting) return
-    setBusyId(deleting.id)
-    const result = await deleteCategory(deleting.id)
+    if (!deleting) return;
+    setBusyId(deleting.id);
+    const result = await deleteCategory(deleting.id);
     if (!result.ok) {
-      toast.error("Could not delete category", { description: result.error })
+      toast.error("Could not delete category", { description: result.error });
     } else {
-      toast.success("Category deleted")
-      setDeleting(null)
-      onMutated?.()
+      toast.success("Category deleted");
+      setDeleting(null);
+      onMutated?.();
     }
-    setBusyId(null)
+    setBusyId(null);
   }
 
   return (
@@ -188,6 +190,9 @@ export function CategoriesManager({
           <TableHeader>
             <TableRow>
               <TableHead className="pl-6">Category</TableHead>
+              <TableHead className="hidden lg:table-cell">
+                Linked resources
+              </TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="hidden md:table-cell">Slug</TableHead>
               <TableHead className="hidden lg:table-cell">Icon</TableHead>
@@ -200,7 +205,7 @@ export function CategoriesManager({
             {categories.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-muted-foreground py-12 text-center"
                 >
                   {search
@@ -210,7 +215,10 @@ export function CategoriesManager({
               </TableRow>
             ) : (
               categories.map((category) => {
-                const Icon = categoryIcon(category.icon_key)
+                const Icon = categoryIcon(category.icon_key);
+                const resourceLinks = [
+                  ...(category.category_resources ?? []),
+                ].sort((a, b) => a.sort_order - b.sort_order);
                 return (
                   <TableRow key={category.id} className="hover:bg-muted/40">
                     <TableCell className="pl-6">
@@ -223,12 +231,33 @@ export function CategoriesManager({
                           <Icon className="size-4" />
                         </span>
                         <span className="min-w-0 space-y-0.5">
-                          <span className="block font-medium">{category.name}</span>
+                          <span className="block font-medium">
+                            {category.title}
+                          </span>
                           <span className="text-muted-foreground block text-xs">
-                            {category.short_description || "—"}
+                            {category.subtitle || "—"}
                           </span>
                         </span>
                       </button>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {resourceLinks.length > 0 ? (
+                        <div className="flex max-w-sm flex-wrap gap-1">
+                          {resourceLinks.map((link) => (
+                            <Badge
+                              key={link.resource_id}
+                              variant="secondary"
+                              className="max-w-full truncate font-normal"
+                            >
+                              {link.resources?.title ?? "Untitled resource"}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          No linked resources
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -237,7 +266,7 @@ export function CategoriesManager({
                           "font-medium",
                           category.is_active
                             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                            : "bg-muted text-muted-foreground"
+                            : "bg-muted text-muted-foreground",
                         )}
                       >
                         {category.is_active ? "Active" : "Inactive"}
@@ -257,7 +286,7 @@ export function CategoriesManager({
                               variant="ghost"
                               size="icon-sm"
                               disabled={busyId === category.id}
-                              aria-label={`Actions for ${category.name}`}
+                              aria-label={`Actions for ${category.title}`}
                             />
                           }
                         >
@@ -286,7 +315,7 @@ export function CategoriesManager({
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )
+                );
               })
             )}
           </TableBody>
@@ -320,7 +349,7 @@ export function CategoriesManager({
                       {pageNum}
                     </PaginationLink>
                   </PaginationItem>
-                )
+                ),
               )}
               <PaginationItem>
                 <PaginationNext
@@ -344,21 +373,23 @@ export function CategoriesManager({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         category={editing}
+        resources={resources}
+        providers={providers}
         onSaved={onMutated}
       />
 
       <Dialog
         open={Boolean(deleting)}
         onOpenChange={(open) => {
-          if (!open) setDeleting(null)
+          if (!open) setDeleting(null);
         }}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete “{deleting?.name}”?</DialogTitle>
+            <DialogTitle>Delete “{deleting?.title}”?</DialogTitle>
             <DialogDescription>
-              This permanently removes the category and cascades to its tasks
-              and resource links. Prefer deactivating to hide it instead.
+              This permanently removes the category and cascades to resource
+              links. Prefer deactivating to hide it instead.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -376,5 +407,5 @@ export function CategoriesManager({
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

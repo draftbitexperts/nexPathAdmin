@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "react-router"
 
-import { PageHeader } from "@/components/dashboard/page-header"
 import { ProvidersPageSkeleton } from "@/components/dashboard/page-loading"
 import { ProvidersManager } from "@/components/providers/providers-manager"
 import { useDocumentTitle } from "@/hooks/use-document-title"
@@ -45,8 +44,6 @@ export function ProvidersPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader title="Providers" />
-
       {error ? (
         <div
           role="alert"

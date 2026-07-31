@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { PageHeader } from "@/components/dashboard/page-header";
 import {
   Card,
   CardContent,
@@ -11,22 +10,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export function PageShell({
-  title,
   action,
   children,
 }: {
-  title: string;
   action?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title={title}
-        actions={
-          action ? <Skeleton className="h-9 w-32 rounded-lg" /> : undefined
-        }
-      />
+      {action ? (
+        <div className="flex justify-end">
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+      ) : null}
       {children}
     </div>
   );
@@ -81,7 +77,7 @@ export function ManagerTableSkeleton({
 
 export function DashboardPageSkeleton() {
   return (
-    <PageShell title="Dashboard">
+    <PageShell>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="border-border/60 shadow-sm">
@@ -203,7 +199,7 @@ function SearchFieldSkeleton() {
 
 export function ResourcesPageSkeleton() {
   return (
-    <PageShell title="Resources">
+    <PageShell>
       <div className="space-y-4">
         <SearchFieldSkeleton />
         <ManagerTableSkeleton
@@ -241,7 +237,7 @@ export function ResourcesPageSkeleton() {
 
 export function DirectoriesPageSkeleton() {
   return (
-    <PageShell title="Directories">
+    <PageShell>
       <div className="space-y-4">
         <SearchFieldSkeleton />
         <ManagerTableSkeleton
@@ -273,7 +269,7 @@ export function DirectoriesPageSkeleton() {
 
 export function ProvidersPageSkeleton() {
   return (
-    <PageShell title="Providers">
+    <PageShell>
       <div className="space-y-4">
         <SearchFieldSkeleton />
         <ManagerTableSkeleton
@@ -303,7 +299,7 @@ export function ProvidersPageSkeleton() {
 
 export function CategoriesPageSkeleton() {
   return (
-    <PageShell title="Categories">
+    <PageShell>
       <div className="space-y-4">
         <SearchFieldSkeleton />
         <ManagerTableSkeleton
@@ -337,7 +333,7 @@ export function CategoriesPageSkeleton() {
 
 export function LocationsPageSkeleton() {
   return (
-    <PageShell title="Locations">
+    <PageShell>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Skeleton className="h-8 w-80 max-w-full rounded-lg" />
@@ -367,7 +363,7 @@ export function LocationsPageSkeleton() {
 
 export function AnalyticsPageSkeleton() {
   return (
-    <PageShell title="Analytics">
+    <PageShell>
       <div className="space-y-4">
         <Skeleton className="h-8 w-48 max-w-full rounded-lg" />
         <ManagerTableSkeleton
@@ -406,7 +402,7 @@ export function AnalyticsPageSkeleton() {
 
 export function LibraryPageSkeleton() {
   return (
-    <PageShell title="Library" action>
+    <PageShell action>
       <div className="grid gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i} className="border-border/60 shadow-sm">
@@ -446,7 +442,7 @@ export function LibraryPageSkeleton() {
 
 export function UploadPageSkeleton() {
   return (
-    <PageShell title="Upload">
+    <PageShell>
       <Card className="border-border/60 mx-auto max-w-2xl shadow-sm">
         <CardHeader>
           <Skeleton className="h-5 w-28" />
@@ -482,7 +478,7 @@ export function UploadPageSkeleton() {
 
 export function SettingsPageSkeleton() {
   return (
-    <PageShell title="Settings">
+    <PageShell>
       <div className="mx-auto grid max-w-3xl gap-6">
         <Card className="border-border/60 shadow-sm">
           <CardHeader>
